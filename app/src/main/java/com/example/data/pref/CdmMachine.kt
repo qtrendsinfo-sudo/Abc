@@ -172,39 +172,35 @@ object CdmDataProvider {
             Pair(25.2590, 51.4320)  // Talabat Mart Bu Sidra
         )
 
-        return rawMachines.map { raw ->
-            val anchorIndex = raw.id % 5
+        val selectedIds = listOf(1, 2, 3, 4, 5)
+        return rawMachines.filter { it.id in selectedIds }.map { raw ->
+            val anchorIndex = raw.id - 1
             val anchor = anchors[anchorIndex]
 
             // Precisely map and inject names/coordinates for the 5 requested terminals at IDs 1-5
             val (name, branchNameText, lat, lng) = when (raw.id) {
                 1 -> {
                     val a = anchors[0]
-                    Quad("Al Shariyas Food Center", "Al Aziziya Branch-Al Shariyas Food Center", a.first, a.second)
+                    Quad("Al Shariyas Food Center", "Al Aziziya-Al Shariyas Food Center", a.first, a.second)
                 }
                 2 -> {
                     val a = anchors[1]
-                    Quad("Al Jazeera Petrol Station", "Ain Khaled Branch-Al Jazeera Petrol Station", a.first, a.second)
+                    Quad("Al Jazeera Petrol Station", "Ain Khaled-Al Jazeera Petrol Station", a.first, a.second)
                 }
                 3 -> {
                     val a = anchors[2]
-                    Quad("Talabat Mart Al Sadd", "Al Sadd Branch-Talabat Mart Al Sadd", a.first, a.second)
+                    Quad("Talabat Mart Al Sadd", "Al Sadd-Talabat Mart Al Sadd", a.first, a.second)
                 }
                 4 -> {
                     val a = anchors[3]
-                    Quad("Talabat Mart Abu Hamour", "Abu Hamour Branch-Talabat Mart Abu Hamour", a.first, a.second)
+                    Quad("Talabat Mart Abu Hamour", "Abu Hamour-Talabat Mart Abu Hamour", a.first, a.second)
                 }
                 5 -> {
                     val a = anchors[4]
-                    Quad("Talabat Mart Bu Sidra", "Bu Sidra Branch-Talabat Mart Bu Sidra", a.first, a.second)
+                    Quad("Talabat Mart Bu Sidra", "Bu Sidra-Talabat Mart Bu Sidra", a.first, a.second)
                 }
                 else -> {
-                    // Stable, pseudo-random small offsets that distribute markers purely on land Doha
-                    val offsetLat = ((raw.id * 0.00171) % 0.016) - 0.008
-                    val offsetLng = ((raw.id * 0.00213) % 0.016) - 0.008
-                    
-                    // Keep general merchant and branch names unchanged but move coordinates safely to land near anchor
-                    Quad(raw.merchantName, raw.branchName, anchor.first + offsetLat, anchor.second + offsetLng)
+                    Quad(raw.merchantName, raw.branchName, anchor.first, anchor.second)
                 }
             }
 

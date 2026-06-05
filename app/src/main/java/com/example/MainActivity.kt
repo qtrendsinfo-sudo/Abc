@@ -192,10 +192,18 @@ class MainActivity : FragmentActivity() {
             startAnimate = true
         }
 
+        val splashGradient = androidx.compose.ui.graphics.Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFFFFFCFA), // Pristine bright cream
+                Color(0xFFFFF0E5), // Soft bright warm orange tint
+                Color(0xFFFFE3D1)  // Warm premium base
+            )
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF1A1C1E)),
+                .background(splashGradient),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -205,37 +213,45 @@ class MainActivity : FragmentActivity() {
                     .padding(24.dp)
                     .scale(scaleAnim)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "CMD Finder Logo",
+                Box(
                     modifier = Modifier
-                        .size(120.dp)
-                        .shadow(12.dp, shape = RoundedCornerShape(28.dp))
-                        .clip(RoundedCornerShape(28.dp))
-                )
+                        .size(130.dp)
+                        .shadow(16.dp, shape = RoundedCornerShape(32.dp))
+                        .background(Color.White, shape = RoundedCornerShape(32.dp))
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = "CMD Finder Logo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp))
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Text(
                     text = "CMD Finder",
                     style = TextStyle(
-                        color = Color(0xFFF8FAFC),
-                        fontSize = 26.sp,
+                        color = Color(0xFFFF5E00), // High-fidelity brand orange
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp,
                         textAlign = TextAlign.Center
                     )
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "CENTRAL QATAR DISPATCH",
                     style = TextStyle(
-                        color = Color(0xFFFF5E00),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.5.sp,
+                        color = Color(0xFF334155), // High-contrast Charcoal slate for maximum readability on bright surface
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.0.sp,
                         textAlign = TextAlign.Center
                     )
                 )

@@ -126,7 +126,15 @@ fun MapScreen(
     val etaMinutes by viewModel.etaMinutes.collectAsState()
     val distanceKm by viewModel.distanceKm.collectAsState()
     val selectedMachine by viewModel.selectedMachine.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchQueryFromVm by viewModel.searchQuery.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
+    var showDropdown by remember { mutableStateOf(false) }
+
+    LaunchedEffect(searchQueryFromVm) {
+        if (searchQueryFromVm != searchQuery) {
+            searchQuery = searchQueryFromVm
+        }
+    }
     val activeFilter by viewModel.activeFilter.collectAsState()
     val filteredMachines by viewModel.filteredMachines.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
@@ -396,7 +404,8 @@ fun MapScreen(
                             viewModel.selectMachine(machine)
                             editNotesText = machine.notes
                             isEditingNotes = false
-                            // Camera scroll transitions cleanly on marker selection
+                            
+                            // Smoothly center the camera over selected terminal marker location
                             scope.launch {
                                 try {
                                     cameraPositionState.animate(
@@ -407,6 +416,9 @@ fun MapScreen(
                                     // Ignore camera animation failure
                                 }
                             }
+                            
+                            // Instantly draw the active neon navigation route line from rider's spot
+                            viewModel.startNavigationSimulation()
                             true
                         }
                     )
@@ -423,6 +435,9 @@ fun MapScreen(
                     viewModel.selectMachine(machine)
                     editNotesText = machine?.notes ?: ""
                     isEditingNotes = false
+                    if (machine != null) {
+                        viewModel.startNavigationSimulation()
+                    }
                 },
                 errorMessage = if (isMapInitError) mapInitErrorMessage else mapCrashErrorMessage
             )
@@ -464,7 +479,11 @@ fun MapScreen(
 
                     TextField(
                         value = searchQuery,
-                        onValueChange = { viewModel.search(it) },
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.search(it)
+                            showDropdown = it.isNotBlank()
+                        },
                         textStyle = TextStyle(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
@@ -472,7 +491,7 @@ fun MapScreen(
                         ),
                         placeholder = {
                             Text(
-                                "Search 131 positions in Qatar...",
+                                "Search Talabat positions in Qatar...",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)
@@ -495,7 +514,11 @@ fun MapScreen(
                     )
 
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.search("") }) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            viewModel.search("")
+                            showDropdown = false
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear inquiry keyword parameters",
@@ -514,6 +537,101 @@ fun MapScreen(
                             contentDescription = "Switch between Waze Day Mode and Midnight Neon Night Mode",
                             tint = if (isDarkTheme) Color(0xFFFFB74D) else Color(0xFF334155)
                         )
+                    }
+                }
+            }
+
+            // ==========================================
+            // SLEEK FLOATING DROPDOWN SUGGESTIONS MENU COUPLING
+            // ==========================================
+            Box(
+                modifier = Modifier.fillMaxWidth().zIndex(999f),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showDropdown && searchQuery.trim().length >= 1 && filteredMachines.isNotEmpty(),
+                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .heightIn(max = 280.dp)
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(filteredMachines) { machine ->
+                                val dist = viewModel.calculateDistance(
+                                    riderLoc.first, riderLoc.second,
+                                    machine.latitude, machine.longitude
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.selectMachine(machine)
+                                            editNotesText = machine.notes
+                                            isEditingNotes = false
+                                            
+                                            // Hide dropdown on click
+                                            showDropdown = false
+                                            
+                                            scope.launch {
+                                                try {
+                                                    cameraPositionState.animate(
+                                                        CameraUpdateFactory.newLatLngZoom(
+                                                            LatLng(machine.latitude, machine.longitude),
+                                                            15f
+                                                        ),
+                                                        1000
+                                                    )
+                                                } catch (e: Throwable) {}
+                                            }
+                                            
+                                            // Trigger navigation and path routing line drawing
+                                            viewModel.startNavigationSimulation()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = "Suggested Machine",
+                                        tint = Color(0xFFFF5E00),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = machine.merchantName,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
+                                        )
+                                        Text(
+                                            text = machine.branchName,
+                                            fontSize = 11.sp,
+                                            color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${"%.2f".format(dist)} km",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFF5E00)
+                                    )
+                                }
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9)))
+                            }
+                        }
                     }
                 }
             }
@@ -1553,31 +1671,69 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
             
             BitmapDescriptorFactory.fromBitmap(bitmap)
         } else {
-            val size = 22 // Ultra sharp, clutter free 22px micro dots
-            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val width = 72
+            val height = 90
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             
-            val color = when (status) {
-                "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Coral Red
-                "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber Orange
-                else -> if (isDark) 0xFF00B0FF.toInt() else 0xFF0083FF.toInt() // Premium Azure Blue micro-dots
+            val cx = width / 2f
+            val cy = height * 0.4f
+            val r = width * 0.35f
+            
+            val baseColor = when (status) {
+                "DOWN" -> 0xFFEF4444.toInt() // Coral Red
+                "CROWDED" -> 0xFFF59E0B.toInt() // Busy Amber
+                else -> 0xFFFF5E00.toInt() // Signature Talabat Orange
             }
             
-            // White background ring
+            // Draw a subtle soft shadow oval under the pin tip
+            val shadowPaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(0x33000000)
+            }
+            canvas.drawOval(cx - 14f, height - 12f, cx + 14f, height - 2f, shadowPaint)
+            
+            // Modern location pin path pointing directly down
+            val path = android.graphics.Path()
+            path.moveTo(cx, height * 0.9f)
+            path.lineTo(cx - 18f, cy + 10f)
+            path.arcTo(cx - r, cy - r, cx + r, cy + r, 145f, 250f, false)
+            path.close()
+            
+            val pinPaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(baseColor)
+            }
+            canvas.drawPath(path, pinPaint)
+            
+            // Premium Crisp White border outline
             val borderPaint = Paint().apply {
                 isAntiAlias = true
-                setStyle(Paint.Style.FILL)
+                setStyle(Paint.Style.STROKE)
+                setStrokeWidth(3.5f)
                 setColor(0xFFFFFFFF.toInt())
             }
-            canvas.drawCircle(size / 2f, size / 2f, size / 2f, borderPaint)
+            canvas.drawPath(path, borderPaint)
             
-            // Fill color
-            val fillPaint = Paint().apply {
+            // Teal Inner core container for ACTIVE machines to create the stylized orange/teal visual identity
+            val innerCorePaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
-                setColor(color)
+                setColor(if (status == "ACTIVE") 0xFF00B1A9.toInt() else 0xFFFFFFFF.toInt())
             }
-            canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2.5f, fillPaint)
+            canvas.drawCircle(cx, cy, r * 0.6f, innerCorePaint)
+            
+            // Mini colored dot or stylish text inside
+            val textPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = if (status == "ACTIVE") 0xFFFFFFFF.toInt() else baseColor
+                textSize = 10f
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
+            canvas.drawText("CMD", cx, cy + 3.5f, textPaint)
             
             BitmapDescriptorFactory.fromBitmap(bitmap)
         }
