@@ -268,13 +268,9 @@ fun MapScreen(
                     }
                     Polyline(
                         points = routePoints,
-                        color = Color(0xFF00C853), // High-visibility Talabat/Uber Green #00C853 line!
-                        width = 14f
-                    )
-                    Polyline(
-                        points = routePoints,
-                        color = Color(0xFFE0F7FA), // Soft inner high-contrast cyan highlight path
-                        width = 4f
+                        color = Color(0xFF00B0FF), // Sleek, modern neon-azure blue (#00B0FF)
+                        width = 8f,
+                        jointType = com.google.android.gms.maps.model.JointType.ROUND
                     )
                 }
 
@@ -633,7 +629,6 @@ fun MapScreen(
                         }
                     }
                 }
-                Toast.makeText(context, "Centered map on your live GPS location", Toast.LENGTH_SHORT).show()
             },
             containerColor = Color.White,
             contentColor = Color(0xFFFF5E00),
@@ -923,24 +918,37 @@ fun MapScreen(
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isNavigating) Color(0xFFEF4444) else Color(0xFFFF5E00)
                                 ),
+                                contentPadding = PaddingValues(0.dp),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
                                     .testTag("map_navigation_button")
                             ) {
-                                Icon(
-                                    imageVector = if (isNavigating) Icons.Default.Navigation else Icons.Default.NearMe,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (isNavigating) "STOP NAVIGATION" else "GO NAVIGATE",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isNavigating) Icons.Default.Navigation else Icons.Default.NearMe,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (isNavigating) "STOP NAVIGATION" else "GO NAVIGATE",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 13.sp,
+                                            color = Color.White,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -1040,7 +1048,7 @@ fun MapScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Device / System Sync status badge
                         Card(
@@ -1070,16 +1078,16 @@ fun MapScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider(color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9))
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Switch: Theme Switch Toggle
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = 12.dp)
                         ) {
                             Icon(
                                 imageVector = if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode,
@@ -1104,7 +1112,12 @@ fun MapScreen(
                             Switch(
                                 checked = isDarkTheme,
                                 onCheckedChange = { viewModel.setDarkTheme(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFFFF5E00)),
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF00C853),
+                                    uncheckedThumbColor = Color(0xFF94A3B8),
+                                    uncheckedTrackColor = if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)
+                                ),
                                 modifier = Modifier.testTag("app_theme_dark_switch")
                             )
                         }
@@ -1114,7 +1127,7 @@ fun MapScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = 12.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Fingerprint,
@@ -1139,14 +1152,19 @@ fun MapScreen(
                             Switch(
                                 checked = isBiometricsEnabledActive,
                                 onCheckedChange = { viewModel.setBiometricsEnabled(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFFFF5E00)),
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF00C853),
+                                    uncheckedThumbColor = Color(0xFF94A3B8),
+                                    uncheckedTrackColor = if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)
+                                ),
                                 modifier = Modifier.testTag("biometric_toggle_switch")
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider(color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9))
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Legal Compliance Section (Highly Requested)
                         Text(
@@ -1159,7 +1177,7 @@ fun MapScreen(
                             ),
                             modifier = Modifier.align(Alignment.Start)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1212,7 +1230,7 @@ fun MapScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Action Panel Buttons (Dismiss / Logout)
                         Row(
@@ -1353,34 +1371,41 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
         com.google.android.gms.maps.MapsInitializer.initialize(context)
         
         if (status == "RIDER") {
-            // Highly-visible maps/gps blue location tracker with concentric outer glow & drop shadows
-            val size = 36 // Larger 36px footprint for supreme visibility on zoom out
+            // Highly-visible maps/gps blue location tracker with concentric outer glow & circular pulses
+            val size = 72 // Large 72px footprint for supreme visibility to riders moving on a bike
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             
-            // 1. Translucent Soft Blue Outer Pulse/Halo (25% opacity)
-            val haloPaint = Paint().apply {
+            // 1. Double Concentric Pulsing Halos (Translucent neon-azure glow)
+            val outerHaloPaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
-                setColor(0x400084FF.toInt())
+                setColor(0x3300B0FF.toInt()) // 20% opacity outer pulse
             }
-            canvas.drawCircle(size / 2f, size / 2f, size / 2f, haloPaint)
+            canvas.drawCircle(size / 2f, size / 2f, 36f, outerHaloPaint)
             
-            // 2. Solid White Boundary Ring
+            val innerHaloPaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(0x6600B0FF.toInt()) // 40% opacity inner pulse
+            }
+            canvas.drawCircle(size / 2f, size / 2f, 24f, innerHaloPaint)
+            
+            // 2. Solid White Boundary Contact Ring
             val whitePaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
                 setColor(0xFFFFFFFF.toInt())
             }
-            canvas.drawCircle(size / 2f, size / 2f, 12f, whitePaint)
+            canvas.drawCircle(size / 2f, size / 2f, 16f, whitePaint)
             
-            // 3. Crisp Signature Blue Core
+            // 3. Crisp Signature GPS Blue Core
             val corePaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
-                setColor(0xFF007AFF.toInt()) // Standard GPS Navigation Blue
+                setColor(0xFF007AFF.toInt()) // Perfect GPS Navigation Blue core
             }
-            canvas.drawCircle(size / 2f, size / 2f, 8.5f, corePaint)
+            canvas.drawCircle(size / 2f, size / 2f, 11f, corePaint)
             
             BitmapDescriptorFactory.fromBitmap(bitmap)
         } else {

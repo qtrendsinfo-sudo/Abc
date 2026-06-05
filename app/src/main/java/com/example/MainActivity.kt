@@ -195,7 +195,7 @@ class MainActivity : FragmentActivity() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White),
+                .background(Color(0xFF1A1C1E)),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -206,12 +206,12 @@ class MainActivity : FragmentActivity() {
                     .scale(scaleAnim)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.app_launcher_icon_1780642008833),
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
                     contentDescription = "Talabat CDM Finder Logo",
                     modifier = Modifier
                         .size(120.dp)
+                        .shadow(12.dp, shape = RoundedCornerShape(28.dp))
                         .clip(RoundedCornerShape(28.dp))
-                        .shadow(8.dp, RoundedCornerShape(28.dp))
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -219,7 +219,7 @@ class MainActivity : FragmentActivity() {
                 Text(
                     text = "Talabat CDM Finder",
                     style = TextStyle(
-                        color = Color(0xFF0F172A),
+                        color = Color(0xFFF8FAFC),
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp,

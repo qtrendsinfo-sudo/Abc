@@ -1,8 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="72dp"
-        android:height="72dp"
-        android:drawable="@drawable/app_launcher_icon_1780642008833"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- 1. Centered Premium Squircle with fiery modern orange gradient -->
+    <path
+        android:pathData="M 54,20 C 76,20 88,32 88,54 C 88,76 76,88 54,88 C 32,88 20,76 20,54 C 20,32 32,20 54,20 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="88"
+                android:endY="88"
+                android:startX="20"
+                android:startY="20"
+                android:type="linear">
+                <item
+                    android:color="#FF5E00"
+                    android:offset="0.0" />
+                <item
+                    android:color="#FF8200"
+                    android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- 2. Minimalist Thin White Inner Accent Border for High Tech Depth -->
+    <path
+        android:pathData="M 54,23 C 73,23 85,35 85,54 C 85,73 73,85 54,85 C 35,85 23,73 23,54 C 23,35 35,23 54,23 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#40FFFFFF"
+        android:strokeWidth="1.2" />
+
+    <!-- 3. Elegant, Sleek, Modern, Clean Centered White "T" -->
+    <path
+        android:pathData="M 38,34 H 70 V 40 H 57 V 74 H 51 V 40 H 38 Z"
+        android:fillColor="#FFFFFF" />
+        
+</vector>
