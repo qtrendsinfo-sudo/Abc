@@ -231,6 +231,20 @@ class CdmViewModel(
         initialValue = emptyList()
     )
 
+    val nearestMachine: StateFlow<CdmMachine?> = combine(
+        allMachines,
+        _riderLocation
+    ) { list, riderLoc ->
+        if (list.isEmpty()) return@combine null
+        list.minByOrNull {
+            calculateDistance(riderLoc.first, riderLoc.second, it.latitude, it.longitude)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
     // Location components
     private val fusedLocationClient: FusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(context)
@@ -449,6 +463,25 @@ class CdmViewModel(
             Log.e(TAG, "Native location subscription denied. Defaulting to Doha route simulation", e)
             settingsManager.setSimulationEnabled(true)
             _riderLocation.value = Pair(DEFAULT_LAT, DEFAULT_LNG)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun moveToLiveLocation(onSuccess: (Pair<Double, Double>) -> Unit) {
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { loc: Location? ->
+                if (loc != null) {
+                    val pos = Pair(loc.latitude, loc.longitude)
+                    _riderLocation.value = pos
+                    onSuccess(pos)
+                } else {
+                    onSuccess(_riderLocation.value)
+                }
+            }.addOnFailureListener {
+                onSuccess(_riderLocation.value)
+            }
+        } catch (e: Exception) {
+            onSuccess(_riderLocation.value)
         }
     }
 

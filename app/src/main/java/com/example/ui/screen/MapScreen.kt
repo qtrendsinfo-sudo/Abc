@@ -50,6 +50,13 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.maps.android.compose.*
 
+// Premium Custom Marker Drawing Graph imports
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -73,6 +80,12 @@ fun MapScreen(
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val firebaseSyncState by viewModel.firebaseSyncState.collectAsState()
     val isBiometricsEnabledActive by viewModel.isBiometricsEnabled.collectAsState()
+    val nearestMachine by viewModel.nearestMachine.collectAsState()
+
+    // Premium micro-marker icon caching of bitmap descriptors
+    val markerIconActive = remember(isDarkTheme) { createCustomMarkerIcon(context, "ACTIVE", isDarkTheme) }
+    val markerIconCrowded = remember(isDarkTheme) { createCustomMarkerIcon(context, "CROWDED", isDarkTheme) }
+    val markerIconDown = remember(isDarkTheme) { createCustomMarkerIcon(context, "DOWN", isDarkTheme) }
 
     // Local UI control states
     var isOnlineRider by remember { mutableStateOf(true) }
@@ -134,18 +147,25 @@ fun MapScreen(
                 isEditingNotes = false
             }
         ) {
-            // Display all 131 positions on Google Map
+            // Display all 131 positions on Google Map with custom minimalist micro-markers
             filteredMachines.forEach { machine ->
                 val statusTextStr = when (machine.status) {
                     "DOWN" -> "Offline"
                     "CROWDED" -> "Crowded"
                     else -> "Working"
                 }
+
+                val iconDescriptor = when (machine.status) {
+                    "DOWN" -> markerIconDown
+                    "CROWDED" -> markerIconCrowded
+                    else -> markerIconActive
+                }
                 
                 Marker(
                     state = rememberMarkerState(position = LatLng(machine.latitude, machine.longitude)),
                     title = machine.merchantName,
                     snippet = "${machine.shortBranchName} • $statusTextStr",
+                    icon = iconDescriptor,
                     onClick = {
                         viewModel.selectMachine(machine)
                         editNotesText = machine.notes
@@ -259,11 +279,7 @@ fun MapScreen(
             ) {
                 val filters = listOf(
                     "ALL" to "All Positions",
-                    "FAVORITE" to "⭐ Favorites",
-                    "SANNIYA" to "Sanniya (Industrial)",
-                    "WAKRA" to "Wakra",
-                    "KHOR" to "Al Khor",
-                    "RAYYAN" to "Al Rayyan"
+                    "FAVORITE" to "⭐ Favorites"
                 )
                 items(filters) { (type, title) ->
                     val isSelected = activeFilter == type
@@ -287,6 +303,103 @@ fun MapScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+            }
+
+            // ==========================================
+            // PREMIER DYNAMIC CLOSEST TERMINAL OVERLAY
+            // ==========================================
+            AnimatedVisibility(
+                visible = nearestMachine != null && selectedMachine == null,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically()
+            ) {
+                nearestMachine?.let { nearest ->
+                    val dist = viewModel.calculateDistance(
+                        riderLoc.first, riderLoc.second,
+                        nearest.latitude, nearest.longitude
+                    )
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f)
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDarkTheme) Color(0xFFFF5E00).copy(alpha = 0.4f) else Color(0xFFFF5E00).copy(alpha = 0.2f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .testTag("nearest_machine_overlay")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFF5E00).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NearMe,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF5E00),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(10.dp))
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "CLOSEST CDM TERMINAL",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFF5E00)
+                                )
+                                Text(
+                                    text = nearest.merchantName,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isDarkTheme) Color.White else Color(0xFF0F172A),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${"%.2f".format(dist)} km away • ${nearest.shortBranchName}",
+                                    fontSize = 11.sp,
+                                    color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            Button(
+                                onClick = {
+                                    viewModel.selectMachine(nearest)
+                                    scope.launch {
+                                        cameraPositionState.animate(
+                                            CameraUpdateFactory.newLatLngZoom(LatLng(nearest.latitude, nearest.longitude), 15f),
+                                            1000
+                                        )
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5E00)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text("Navigate", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
                     }
                 }
             }
@@ -344,13 +457,15 @@ fun MapScreen(
         // ==========================================
         FloatingActionButton(
             onClick = {
-                scope.launch {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newLatLngZoom(LatLng(riderLoc.first, riderLoc.second), 14f),
-                        800
-                    )
+                viewModel.moveToLiveLocation { location ->
+                    scope.launch {
+                        cameraPositionState.animate(
+                            CameraUpdateFactory.newLatLngZoom(LatLng(location.first, location.second), 16f),
+                            1000
+                        )
+                    }
                 }
-                Toast.makeText(context, "Centered map on GPS rider position location", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Centered map on your live GPS location", Toast.LENGTH_SHORT).show()
             },
             containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White,
             contentColor = Color(0xFFFF5E00),
@@ -1021,4 +1136,35 @@ fun MapScreen(
             TermsConditionsDialog(onDismiss = { showTermsConditionsSub = false })
         }
     }
+}
+
+fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): BitmapDescriptor {
+    val size = 32 // 32px diameter, sharp and compact
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    
+    // Select color based on machine status
+    val color = when (status) {
+        "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Red
+        "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber
+        else -> if (isDark) 0xFF10B981.toInt() else 0xFF059669.toInt() // Emerald Green
+    }
+    
+    // Draw white outer halo
+    val borderPaint = Paint().apply {
+        isAntiAlias = true
+        setStyle(Paint.Style.FILL)
+        setColor(0xFFFFFFFF.toInt())
+    }
+    canvas.drawCircle(size / 2f, size / 2f, size / 2f, borderPaint)
+    
+    // Draw inner colored status dot
+    val fillPaint = Paint().apply {
+        isAntiAlias = true
+        setStyle(Paint.Style.FILL)
+        setColor(color)
+    }
+    canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 3f, fillPaint)
+    
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
