@@ -1165,33 +1165,41 @@ fun MapScreen(
     }
 }
 
-fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): BitmapDescriptor {
-    val size = 32 // 32px diameter, sharp and compact
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    
-    // Select color based on machine status
-    val color = when (status) {
-        "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Red
-        "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber
-        else -> if (isDark) 0xFF10B981.toInt() else 0xFF059669.toInt() // Emerald Green
+fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): BitmapDescriptor? {
+    return try {
+        // Explicitly initialize the Maps SDK to ensure BitmapDescriptorFactory is ready
+        com.google.android.gms.maps.MapsInitializer.initialize(context)
+        
+        val size = 32 // 32px diameter, sharp and compact
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        
+        // Select color based on machine status
+        val color = when (status) {
+            "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Red
+            "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber
+            else -> if (isDark) 0xFF10B981.toInt() else 0xFF059669.toInt() // Emerald Green
+        }
+        
+        // Draw white outer halo
+        val borderPaint = Paint().apply {
+            isAntiAlias = true
+            setStyle(Paint.Style.FILL)
+            setColor(0xFFFFFFFF.toInt())
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, borderPaint)
+        
+        // Draw inner colored status dot
+        val fillPaint = Paint().apply {
+            isAntiAlias = true
+            setStyle(Paint.Style.FILL)
+            setColor(color)
+        }
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 3f, fillPaint)
+        
+        BitmapDescriptorFactory.fromBitmap(bitmap)
+    } catch (e: Throwable) {
+        // Fallback safely to default marker if SDK or bitmap generation fails
+        null
     }
-    
-    // Draw white outer halo
-    val borderPaint = Paint().apply {
-        isAntiAlias = true
-        setStyle(Paint.Style.FILL)
-        setColor(0xFFFFFFFF.toInt())
-    }
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f, borderPaint)
-    
-    // Draw inner colored status dot
-    val fillPaint = Paint().apply {
-        isAntiAlias = true
-        setStyle(Paint.Style.FILL)
-        setColor(color)
-    }
-    canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 3f, fillPaint)
-    
-    return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
