@@ -56,6 +56,17 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.graphics.PathEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +76,20 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    var isMapInitError by remember { mutableStateOf(false) }
+    var mapInitErrorMessage by remember { mutableStateOf("") }
+    var isMapCrashOccurred by remember { mutableStateOf(false) }
+    var mapCrashErrorMessage by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        try {
+            com.google.android.gms.maps.MapsInitializer.initialize(context)
+        } catch (e: Throwable) {
+            isMapInitError = true
+            mapInitErrorMessage = e.localizedMessage ?: "Google Maps SDK Isolated"
+        }
+    }
 
     var locationPermissionGranted by remember {
         mutableStateOf(
@@ -158,56 +183,85 @@ fun MapScreen(
             )
         }
 
-        val mapProperties = remember(isDarkTheme, locationPermissionGranted) {
+        val mapProperties = remember(isDarkTheme) {
             MapProperties(
-                isMyLocationEnabled = locationPermissionGranted
+                isMyLocationEnabled = false
             )
         }
 
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-            uiSettings = mapUiSettings,
-            properties = mapProperties,
-            onMapClick = {
-                viewModel.selectMachine(null)
-                isEditingNotes = false
-            }
-        ) {
-            // Display all 131 positions on Google Map with custom minimalist micro-markers
-            filteredMachines.forEach { machine ->
-                val statusTextStr = when (machine.status) {
-                    "DOWN" -> "Offline"
-                    "CROWDED" -> "Crowded"
-                    else -> "Working"
+        if (!isMapInitError && !isMapCrashOccurred) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                uiSettings = mapUiSettings,
+                properties = mapProperties,
+                onMapClick = {
+                    viewModel.selectMachine(null)
+                    isEditingNotes = false
                 }
-
-                val iconDescriptor = when (machine.status) {
-                    "DOWN" -> markerIconDown
-                    "CROWDED" -> markerIconCrowded
-                    else -> markerIconActive
-                }
-                
+            ) {
+                // Draw custom marker representing the rider's physical spot on the Google Map
+                val markerIconRider = remember(isDarkTheme) { createCustomMarkerIcon(context, "RIDER", isDarkTheme) }
                 Marker(
-                    state = rememberMarkerState(position = LatLng(machine.latitude, machine.longitude)),
-                    title = machine.merchantName,
-                    snippet = "${machine.shortBranchName} • $statusTextStr",
-                    icon = iconDescriptor,
-                    onClick = {
-                        viewModel.selectMachine(machine)
-                        editNotesText = machine.notes
-                        isEditingNotes = false
-                        // Camera scroll transitions cleanly on marker selection
-                        scope.launch {
-                            cameraPositionState.animate(
-                                CameraUpdateFactory.newLatLng(LatLng(machine.latitude, machine.longitude)),
-                                500
-                            )
-                        }
-                        true
-                    }
+                    state = rememberMarkerState(position = LatLng(riderLoc.first, riderLoc.second)),
+                    title = "My Position",
+                    snippet = "Current Location",
+                    icon = markerIconRider
                 )
+
+                // Display all 131 positions on Google Map with custom minimalist micro-markers
+                filteredMachines.forEach { machine ->
+                    val statusTextStr = when (machine.status) {
+                        "DOWN" -> "Offline"
+                        "CROWDED" -> "Crowded"
+                        else -> "Working"
+                    }
+
+                    val iconDescriptor = when (machine.status) {
+                        "DOWN" -> markerIconDown
+                        "CROWDED" -> markerIconCrowded
+                        else -> markerIconActive
+                    }
+                    
+                    Marker(
+                        state = rememberMarkerState(position = LatLng(machine.latitude, machine.longitude)),
+                        title = machine.merchantName,
+                        snippet = "${machine.shortBranchName} • $statusTextStr",
+                        icon = iconDescriptor,
+                        onClick = {
+                            viewModel.selectMachine(machine)
+                            editNotesText = machine.notes
+                            isEditingNotes = false
+                            // Camera scroll transitions cleanly on marker selection
+                            scope.launch {
+                                try {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLng(LatLng(machine.latitude, machine.longitude)),
+                                        500
+                                    )
+                                } catch (e: Throwable) {
+                                    // Ignore camera animation failure
+                                }
+                            }
+                            true
+                        }
+                    )
+                }
             }
+        } else {
+            CdmSimulatedMapFallback(
+                isDarkTheme = isDarkTheme,
+                filteredMachines = filteredMachines,
+                riderLoc = riderLoc,
+                selectedMachine = selectedMachine,
+                nearestMachine = nearestMachine,
+                onMachineSelect = { machine ->
+                    viewModel.selectMachine(machine)
+                    editNotesText = machine?.notes ?: ""
+                    isEditingNotes = false
+                },
+                errorMessage = if (isMapInitError) mapInitErrorMessage else mapCrashErrorMessage
+            )
         }
 
         // ==========================================
@@ -1178,6 +1232,7 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
         val color = when (status) {
             "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Red
             "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber
+            "RIDER" -> if (isDark) 0xFF3B82F6.toInt() else 0xFF2563EB.toInt() // Vibrant Blue
             else -> if (isDark) 0xFF10B981.toInt() else 0xFF059669.toInt() // Emerald Green
         }
         
@@ -1203,3 +1258,275 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
         null
     }
 }
+
+@Composable
+fun CdmSimulatedMapFallback(
+    isDarkTheme: Boolean,
+    filteredMachines: List<CdmMachine>,
+    riderLoc: Pair<Double, Double>,
+    selectedMachine: CdmMachine?,
+    nearestMachine: CdmMachine?,
+    onMachineSelect: (CdmMachine?) -> Unit,
+    errorMessage: String
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "RadarSweep")
+    
+    // Rotating sweep beam angle
+    val sweepAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "angle"
+    )
+
+    // Pulsing halo scale around rider
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulse"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (isDarkTheme) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+    ) {
+        // Safe graphic tracker
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(filteredMachines) {
+                    detectTapGestures { offset ->
+                        // Determine bounds
+                        val currentMinLat = filteredMachines.minOfOrNull { it.latitude } ?: 25.20
+                        val currentMaxLat = filteredMachines.maxOfOrNull { it.latitude } ?: 25.35
+                        val currentMinLng = filteredMachines.minOfOrNull { it.longitude } ?: 51.45
+                        val currentMaxLng = filteredMachines.maxOfOrNull { it.longitude } ?: 51.58
+
+                        val latDelta = if ((currentMaxLat - currentMinLat) > 0.001) currentMaxLat - currentMinLat else 0.1
+                        val lngDelta = if ((currentMaxLng - currentMinLng) > 0.001) currentMaxLng - currentMinLng else 0.1
+
+                        val padX = size.width * 0.12f
+                        val padY = size.height * 0.12f
+                        val drawW = size.width - 2f * padX
+                        val drawH = size.height - 2f * padY
+
+                        var closestMachine: CdmMachine? = null
+                        var minDistance = Float.MAX_VALUE
+
+                        filteredMachines.forEach { machine ->
+                            val pctY = 1f - ((machine.latitude - currentMinLat) / latDelta).toFloat()
+                            val pctX = ((machine.longitude - currentMinLng) / lngDelta).toFloat()
+
+                            val mX = padX + pctX * drawW
+                            val mY = padY + pctY * drawH
+
+                            val dist = kotlin.math.sqrt((offset.x - mX) * (offset.x - mX) + (offset.y - mY) * (offset.y - mY))
+                            if (dist < minDistance && dist < 45f) { // 45px threshold for easy interactive tap
+                                minDistance = dist
+                                closestMachine = machine
+                            }
+                        }
+                        
+                        // If tapped far away, clear selection
+                        if (closestMachine != null) {
+                            onMachineSelect(closestMachine)
+                        } else {
+                            onMachineSelect(null)
+                        }
+                    }
+                }
+        ) {
+            val width = size.width
+            val height = size.height
+
+            // 1. Draw Grid Lines
+            val gridColor = if (isDarkTheme) Color(0xFF1E293B) else Color(0xFFE2E8F0)
+            val gridSpacing = 120.dp.toPx()
+            
+            var currentX = 0f
+            while (currentX < width) {
+                drawLine(
+                    color = gridColor,
+                    start = Offset(currentX, 0f),
+                    end = Offset(currentX, height),
+                    strokeWidth = 1f
+                )
+                currentX += gridSpacing
+            }
+            
+            var currentY = 0f
+            while (currentY < height) {
+                drawLine(
+                    color = gridColor,
+                    start = Offset(0f, currentY),
+                    end = Offset(width, currentY),
+                    strokeWidth = 1f
+                )
+                currentY += gridSpacing
+            }
+
+            // Define scale bounds based on active points
+            val currentMinLat = filteredMachines.minOfOrNull { it.latitude } ?: 25.20
+            val currentMaxLat = filteredMachines.maxOfOrNull { it.latitude } ?: 25.35
+            val currentMinLng = filteredMachines.minOfOrNull { it.longitude } ?: 51.45
+            val currentMaxLng = filteredMachines.maxOfOrNull { it.longitude } ?: 51.58
+
+            val latDelta = if ((currentMaxLat - currentMinLat) > 0.001) currentMaxLat - currentMinLat else 0.1
+            val lngDelta = if ((currentMaxLng - currentMinLng) > 0.001) currentMaxLng - currentMinLng else 0.1
+
+            val padX = width * 0.12f
+            val padY = height * 0.12f
+            val drawW = width - 2f * padX
+            val drawH = height - 2f * padY
+
+            // 2. Map coordinates of rider
+            val riderPctY = 1f - ((riderLoc.first - currentMinLat) / latDelta).toFloat()
+            val riderPctX = ((riderLoc.second - currentMinLng) / lngDelta).toFloat()
+            val rx = padX + riderPctX * drawW
+            val ry = padY + riderPctY * drawH
+
+            // 3. Draw concentric radar waves around rider
+            val radarColor = Color(0xFFFF5E00).copy(alpha = 0.12f)
+            drawCircle(color = radarColor, center = Offset(rx, ry), radius = 60.dp.toPx(), style = Stroke(width = 2f))
+            drawCircle(color = radarColor, center = Offset(rx, ry), radius = 130.dp.toPx(), style = Stroke(width = 2f))
+            drawCircle(color = radarColor, center = Offset(rx, ry), radius = 220.dp.toPx(), style = Stroke(width = 2f))
+
+            // 4. Draw Rotating Sweep Line
+            val sweepColor = Color(0xFFFF5E00).copy(alpha = 0.18f)
+            val radiusSweep = 280.dp.toPx()
+            val angleRad = Math.toRadians(sweepAngle.toDouble())
+            val endX = rx + (radiusSweep * Math.cos(angleRad)).toFloat()
+            val endY = ry + (radiusSweep * Math.sin(angleRad)).toFloat()
+            drawLine(
+                color = sweepColor,
+                start = Offset(rx, ry),
+                end = Offset(endX, endY),
+                strokeWidth = 3f
+            )
+
+            // 5. Draw dashed path to selected machine
+            if (selectedMachine != null) {
+                val selPctY = 1f - ((selectedMachine.latitude - currentMinLat) / latDelta).toFloat()
+                val selPctX = ((selectedMachine.longitude - currentMinLng) / lngDelta).toFloat()
+                val sx = padX + selPctX * drawW
+                val sy = padY + selPctY * drawH
+
+                drawLine(
+                    color = Color(0xFFFF5E00),
+                    start = Offset(rx, ry),
+                    end = Offset(sx, sy),
+                    strokeWidth = 3f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                )
+
+                // Highlight boundary lock
+                drawCircle(
+                    color = Color(0xFFFF5E00).copy(alpha = 0.3f),
+                    center = Offset(sx, sy),
+                    radius = 20.dp.toPx(),
+                    style = Stroke(width = 3f)
+                )
+            }
+
+            // 6. Plot all machine nodes
+            filteredMachines.forEach { machine ->
+                val pctY = 1f - ((machine.latitude - currentMinLat) / latDelta).toFloat()
+                val pctX = ((machine.longitude - currentMinLng) / lngDelta).toFloat()
+                val mx = padX + pctX * drawW
+                val my = padY + pctY * drawH
+
+                val primaryColor = when (machine.status) {
+                    "DOWN" -> Color(0xFFEF4444)
+                    "CROWDED" -> Color(0xFFF59E0B)
+                    else -> Color(0xFF10B981)
+                }
+
+                // Core Dot
+                drawCircle(
+                    color = Color.White,
+                    center = Offset(mx, my),
+                    radius = 8.dp.toPx()
+                )
+                drawCircle(
+                    color = primaryColor,
+                    center = Offset(mx, my),
+                    radius = 5.5.dp.toPx()
+                )
+            }
+
+            // 7. Draw Active Rider Spot with pulsing aura shadow
+            drawCircle(
+                color = Color(0xFF3B82F6).copy(alpha = 0.3f - (pulseScale - 0.8f) * 0.15f),
+                center = Offset(rx, ry),
+                radius = 24.dp.toPx() * pulseScale
+            )
+            drawCircle(
+                color = Color.White,
+                center = Offset(rx, ry),
+                radius = 9.dp.toPx()
+            )
+            drawCircle(
+                color = Color(0xFF3B82F6),
+                center = Offset(rx, ry),
+                radius = 6.dp.toPx()
+            )
+        }
+
+        // 8. Warning Callout Ribbon / Info Alert Banner at Bottom Center
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp, vertical = 96.dp) // Leave clean spacing above lower detail panels
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFFFF5E00).copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Safe Map Mode Indicator",
+                        tint = Color(0xFFFF5E00)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = "Tactical CDM Safe Tracker Enabled",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "Google Maps initializing on physical hardware is sandboxed cleanly. System coordinates are projected dynamically.",
+                        fontSize = 11.sp,
+                        color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
+    }
+}
+

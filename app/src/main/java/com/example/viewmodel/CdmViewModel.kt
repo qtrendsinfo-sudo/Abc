@@ -421,6 +421,36 @@ class CdmViewModel(
         _etaMinutes.value = etaMin
     }
 
+    fun isRunningInSimulation(): Boolean {
+        if (settingsManager.isSimulationEnabled()) return true
+        
+        val model = android.os.Build.MODEL ?: ""
+        val hardware = android.os.Build.HARDWARE ?: ""
+        val fingerprint = android.os.Build.FINGERPRINT ?: ""
+        val manufacturer = android.os.Build.MANUFACTURER ?: ""
+        val brand = android.os.Build.BRAND ?: ""
+        val device = android.os.Build.DEVICE ?: ""
+        val product = android.os.Build.PRODUCT ?: ""
+        
+        return brand.startsWith("generic") || 
+               device.startsWith("generic") ||
+               fingerprint.startsWith("generic") || 
+               fingerprint.startsWith("unknown") ||
+               hardware.contains("goldfish") || 
+               hardware.contains("ranchu") ||
+               model.contains("google_sdk") || 
+               model.contains("Emulator") || 
+               model.contains("Android SDK built for x86") ||
+               manufacturer.contains("Genymotion") ||
+               product.contains("sdk_google") || 
+               product.contains("google_sdk") || 
+               product.contains("sdk") || 
+               product.contains("sdk_x86") || 
+               product.contains("vbox86p") || 
+               product.contains("emulator") || 
+               product.contains("simulator")
+    }
+
     fun hasLocationPermission(): Boolean {
         return androidx.core.content.ContextCompat.checkSelfPermission(
             context,
@@ -433,13 +463,13 @@ class CdmViewModel(
     }
 
     fun enableDeviceLocationAfterPermission() {
-        if (!settingsManager.isSimulationEnabled()) {
+        if (!isRunningInSimulation()) {
             requestDeviceLocation()
         }
     }
 
     private fun startDeviceLocationOrSimulation() {
-        if (settingsManager.isSimulationEnabled()) {
+        if (isRunningInSimulation()) {
             // Simulator default Doha position
             _riderLocation.value = Pair(DEFAULT_LAT, DEFAULT_LNG)
         } else {
@@ -491,7 +521,7 @@ class CdmViewModel(
 
     @SuppressLint("MissingPermission")
     fun moveToLiveLocation(onSuccess: (Pair<Double, Double>) -> Unit) {
-        if (!hasLocationPermission()) {
+        if (isRunningInSimulation() || !hasLocationPermission()) {
             onSuccess(_riderLocation.value)
             return
         }
