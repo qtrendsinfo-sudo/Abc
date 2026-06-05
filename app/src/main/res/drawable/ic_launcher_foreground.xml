@@ -6,7 +6,7 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- 1. Centered Premium Squircle with fiery modern orange gradient -->
+    <!-- 1. Centered Premium Squircle with royal tech navy blue gradient -->
     <path
         android:pathData="M 54,20 C 76,20 88,32 88,54 C 88,76 76,88 54,88 C 32,88 20,76 20,54 C 20,32 32,20 54,20 Z">
         <aapt:attr name="android:fillColor">
@@ -17,25 +17,36 @@
                 android:startY="20"
                 android:type="linear">
                 <item
-                    android:color="#FF5E00"
+                    android:color="#1A237E"
                     android:offset="0.0" />
                 <item
-                    android:color="#FF8200"
+                    android:color="#0D47A1"
                     android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
     
-    <!-- 2. Minimalist Thin White Inner Accent Border for High Tech Depth -->
+    <!-- 2. Tech-premium Thin Silver Inner Accent Border for High Contrast Depth -->
     <path
         android:pathData="M 54,23 C 73,23 85,35 85,54 C 85,73 73,85 54,85 C 35,85 23,73 23,54 C 23,35 35,23 54,23 Z"
         android:fillColor="#00000000"
-        android:strokeColor="#40FFFFFF"
+        android:strokeColor="#50FFFFFF"
         android:strokeWidth="1.2" />
 
-    <!-- 3. Elegant, Sleek, Modern, Clean Centered White "T" -->
+    <!-- 3. Tech-minimalist "CMD" Typography -->
+    <!-- C Letter -->
     <path
-        android:pathData="M 38,34 H 70 V 40 H 57 V 74 H 51 V 40 H 38 Z"
+        android:pathData="M 42,43 H 34 C 31,43 30,45 30,48 V 60 C 30,63 31,65 34,65 H 42 V 59 H 36 V 49 H 42 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- M Letter -->
+    <path
+        android:pathData="M 45,43 H 49 L 52,51 L 55,43 H 59 V 65 H 55 V 50 L 52,58 L 49,50 V 65 H 45 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- D Letter -->
+    <path
+        android:pathData="M 62,43 H 69 C 72.5,43 74.5,45 74.5,49 V 59 C 74.5,63 72.5,65 69,65 H 62 Z M 66.5,49 V 59 H 68.5 C 70,59 70.5,58 70.5,55 V 53 C 70.5,50 70,49 68.5,49 Z"
         android:fillColor="#FFFFFF" />
         
 </vector>

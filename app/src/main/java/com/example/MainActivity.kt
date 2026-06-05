@@ -207,7 +207,7 @@ class MainActivity : FragmentActivity() {
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "Talabat CDM Finder Logo",
+                    contentDescription = "CMD Finder Logo",
                     modifier = Modifier
                         .size(120.dp)
                         .shadow(12.dp, shape = RoundedCornerShape(28.dp))
@@ -217,7 +217,7 @@ class MainActivity : FragmentActivity() {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Talabat CDM Finder",
+                    text = "CMD Finder",
                     style = TextStyle(
                         color = Color(0xFFF8FAFC),
                         fontSize = 26.sp,
@@ -270,7 +270,7 @@ class MainActivity : FragmentActivity() {
             })
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Talabat CDM Qatar Security Entry")
+            .setTitle("CMD Finder Security Entry")
             .setSubtitle("Scan fingerprint or face biometrics to proceed.")
             .setNegativeButtonText("Use Passcode")
             .build()

@@ -142,6 +142,40 @@ fun MapScreen(
         mutableStateOf(LatLng(riderLoc.first, riderLoc.second))
     }
 
+    var deviceHeading by remember { mutableStateOf(0f) }
+
+    DisposableEffect(context) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as android.hardware.SensorManager
+        val sensor = sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_ROTATION_VECTOR)
+            ?: sensorManager.getDefaultSensor(android.hardware.Sensor.TYPE_ORIENTATION)
+        val listener = object : android.hardware.SensorEventListener {
+            private val rotationMatrix = FloatArray(9)
+            private val orientationValues = FloatArray(3)
+            override fun onSensorChanged(event: android.hardware.SensorEvent?) {
+                event ?: return
+                if (event.sensor.type == android.hardware.Sensor.TYPE_ROTATION_VECTOR) {
+                    try {
+                        android.hardware.SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                        android.hardware.SensorManager.getOrientation(rotationMatrix, orientationValues)
+                        val azimuthDegrees = Math.toDegrees(orientationValues[0].toDouble()).toFloat()
+                        deviceHeading = (azimuthDegrees + 360f) % 360f
+                    } catch (e: Throwable) {
+                        // Safe fallback
+                    }
+                } else {
+                    deviceHeading = event.values[0]
+                }
+            }
+            override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        if (sensor != null) {
+            sensorManager.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_UI)
+        }
+        onDispose {
+            sensorManager.unregisterListener(listener)
+        }
+    }
+
     LaunchedEffect(riderLoc) {
         userLiveLocation = LatLng(riderLoc.first, riderLoc.second)
     }
@@ -212,6 +246,68 @@ fun MapScreen(
         }
     }
 
+    // Live Geocoding, Places & instant keyword panning/centering effect
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isNotBlank() && searchQuery.trim().length >= 3) {
+            val q = searchQuery.trim()
+            // Prefer immediate exact/partial name match of CMD terminals
+            val quickMatch = filteredMachines.firstOrNull {
+                it.merchantName.lowercase().contains(q.lowercase()) ||
+                it.branchName.lowercase().contains(q.lowercase())
+            }
+            if (quickMatch != null) {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(LatLng(quickMatch.latitude, quickMatch.longitude), 15f),
+                    800
+                )
+            } else {
+                // Fallback to on-device background system Geocoder for cities, highways or standard streets in Qatar
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                        val results = geocoder.getFromLocationName("$q, Qatar", 1)
+                        if (!results.isNullOrEmpty()) {
+                            val address = results[0]
+                            val target = LatLng(address.latitude, address.longitude)
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(target, 14f),
+                                    1000
+                                )
+                            }
+                        } else {
+                            // Instant local geocode dictionary keywords mapping to optimize speed and offline use
+                            val lowerQuery = q.lowercase()
+                            val fallbackCoord = when {
+                                "pearl" in lowerQuery -> LatLng(25.3700, 51.5500)
+                                "lusail" in lowerQuery -> LatLng(25.4200, 51.5200)
+                                "west bay" in lowerQuery || "westbay" in lowerQuery -> LatLng(25.3200, 51.5300)
+                                "airport" in lowerQuery || "hamad" in lowerQuery -> LatLng(25.2600, 51.5600)
+                                "al sadd" in lowerQuery || "sadd" in lowerQuery -> LatLng(25.2800, 51.5000)
+                                "corniche" in lowerQuery -> LatLng(25.2900, 51.5300)
+                                "sanniya" in lowerQuery || "industrial" in lowerQuery -> LatLng(25.1800, 51.4200)
+                                "wakra" in lowerQuery -> LatLng(25.1700, 51.6000)
+                                "khor" in lowerQuery -> LatLng(25.6800, 51.5000)
+                                "rayyan" in lowerQuery -> LatLng(25.3000, 51.4500)
+                                else -> null
+                            }
+                            fallbackCoord?.let { target ->
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(target, 14f),
+                                        1000
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        // Resilient geocoder failure bypass
+                    }
+                }
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -257,6 +353,9 @@ fun MapScreen(
                     title = "My Position",
                     snippet = "Current Location",
                     icon = markerIconRider,
+                    rotation = deviceHeading,
+                    flat = true,
+                    anchor = Offset(0.5f, 0.5f),
                     zIndex = 500f
                 )
 
@@ -366,10 +465,16 @@ fun MapScreen(
                     TextField(
                         value = searchQuery,
                         onValueChange = { viewModel.search(it) },
+                        textStyle = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
+                        ),
                         placeholder = {
                             Text(
                                 "Search 131 positions in Qatar...",
-                                fontSize = 14.sp,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)
                             )
                         },
@@ -392,7 +497,7 @@ fun MapScreen(
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.search("") }) {
                             Icon(
-                                imageVector = Icons.Default.Clear,
+                                imageVector = Icons.Default.Close,
                                 contentDescription = "Clear inquiry keyword parameters",
                                 tint = Color(0xFFFF5E00)
                             )
@@ -1372,40 +1477,79 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
         
         if (status == "RIDER") {
             // Highly-visible maps/gps blue location tracker with concentric outer glow & circular pulses
-            val size = 72 // Large 72px footprint for supreme visibility to riders moving on a bike
+            val size = 120 // 120px canvas to accommodate the glowing directional compass beam/shield
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             
-            // 1. Double Concentric Pulsing Halos (Translucent neon-azure glow)
+            val centerX = size / 2f
+            val centerY = size / 2f
+            
+            // 1. Semi-transparent Glowing Directional Beam Cone
+            val conePath = android.graphics.Path().apply {
+                moveTo(centerX, centerY)
+                lineTo(centerX - 35f, 8f) // Left wavefront point
+                quadTo(centerX, -4f, centerX + 35f, 8f) // Elegant custom round wave cone projection curvature
+                close()
+            }
+            
+            val conePaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+            }
+            
+            // Neon azure gradient that starts bright near the dot and fades with distance
+            conePaint.shader = android.graphics.LinearGradient(
+                centerX, centerY, centerX, 0f,
+                intArrayOf(0xDA00B0FF.toInt(), 0x3300B0FF.toInt(), 0x0000B0FF.toInt()),
+                floatArrayOf(0.0f, 0.6f, 1.0f),
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            canvas.drawPath(conePath, conePaint)
+            
+            // Subtle high-tech highlight stroke border around the directional beam
+            val coneStrokePaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.STROKE)
+                setStrokeWidth(1.5f)
+            }
+            coneStrokePaint.shader = android.graphics.LinearGradient(
+                centerX, centerY, centerX, 0f,
+                intArrayOf(0x5500B0FF.toInt(), 0x0000B0FF.toInt()),
+                floatArrayOf(0.0f, 1.0f),
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            canvas.drawPath(conePath, coneStrokePaint)
+            
+            // 2. Double Concentric Pulsing Halos (Translucent neon-azure glow)
             val outerHaloPaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
-                setColor(0x3300B0FF.toInt()) // 20% opacity outer pulse
+                setColor(0x2200B0FF.toInt()) // 13% opacity outer pulse
             }
-            canvas.drawCircle(size / 2f, size / 2f, 36f, outerHaloPaint)
+            canvas.drawCircle(centerX, centerY, 40f, outerHaloPaint)
             
             val innerHaloPaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
-                setColor(0x6600B0FF.toInt()) // 40% opacity inner pulse
+                setColor(0x4400B0FF.toInt()) // 26% opacity inner pulse
             }
-            canvas.drawCircle(size / 2f, size / 2f, 24f, innerHaloPaint)
+            canvas.drawCircle(centerX, centerY, 26f, innerHaloPaint)
             
-            // 2. Solid White Boundary Contact Ring
+            // 3. Crisp White Inner Boundary Ring
             val whitePaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
                 setColor(0xFFFFFFFF.toInt())
             }
-            canvas.drawCircle(size / 2f, size / 2f, 16f, whitePaint)
+            canvas.drawCircle(centerX, centerY, 18f, whitePaint)
             
-            // 3. Crisp Signature GPS Blue Core
+            // 4. Crisp Signature GPS Blue Core Dot
             val corePaint = Paint().apply {
                 isAntiAlias = true
                 setStyle(Paint.Style.FILL)
-                setColor(0xFF007AFF.toInt()) // Perfect GPS Navigation Blue core
+                setColor(0xFF007AFF.toInt()) // Elite GPS Navigation Blue Core
             }
-            canvas.drawCircle(size / 2f, size / 2f, 11f, corePaint)
+            canvas.drawCircle(centerX, centerY, 13f, corePaint)
             
             BitmapDescriptorFactory.fromBitmap(bitmap)
         } else {

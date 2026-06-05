@@ -1,6 +1,6 @@
 {
-  "name": "Talabat CDM Finder",
-  "description": "Real-time, GPS-accurate Waze-style Cash Deposit Machine finder in Qatar supporting all 131 Talabat cdm stations.",
+  "name": "CMD Finder",
+  "description": "Real-time, GPS-accurate Waze-style Cash Deposit Machine finder in Qatar supporting all 131 elite CDM stations.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
