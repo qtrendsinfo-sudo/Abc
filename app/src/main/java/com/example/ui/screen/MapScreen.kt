@@ -499,7 +499,7 @@ fun MapScreen(
             Card(
                 shape = RoundedCornerShape(30.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isOnlineRider) Color(0xFF10B981) else Color(0xFF64748B)
+                    containerColor = if (isOnlineRider) Color(0xFF00C853) else Color(0xFF64748B)
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier
@@ -548,7 +548,7 @@ fun MapScreen(
                 }
                 Toast.makeText(context, "Centered map on your live GPS location", Toast.LENGTH_SHORT).show()
             },
-            containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White,
+            containerColor = Color.White,
             contentColor = Color(0xFFFF5E00),
             shape = CircleShape,
             modifier = Modifier
@@ -1224,16 +1224,16 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
         // Explicitly initialize the Maps SDK to ensure BitmapDescriptorFactory is ready
         com.google.android.gms.maps.MapsInitializer.initialize(context)
         
-        val size = 32 // 32px diameter, sharp and compact
+        val size = 24 // 24px diameter, ultra sharp minimalist micro dots
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         
         // Select color based on machine status
         val color = when (status) {
-            "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Red
-            "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber
-            "RIDER" -> if (isDark) 0xFF3B82F6.toInt() else 0xFF2563EB.toInt() // Vibrant Blue
-            else -> if (isDark) 0xFF10B981.toInt() else 0xFF059669.toInt() // Emerald Green
+            "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Coral Red
+            "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber Orange
+            "RIDER" -> 0xFFFF5E00.toInt() // Signature Talabat Orange for current Rider Spot
+            else -> if (isDark) 0xFF00B0FF.toInt() else 0xFF0083FF.toInt() // Premium Azure Blue micro dots for active spots
         }
         
         // Draw white outer halo
@@ -1250,7 +1250,7 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
             setStyle(Paint.Style.FILL)
             setColor(color)
         }
-        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 3f, fillPaint)
+        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2.5f, fillPaint)
         
         BitmapDescriptorFactory.fromBitmap(bitmap)
     } catch (e: Throwable) {
