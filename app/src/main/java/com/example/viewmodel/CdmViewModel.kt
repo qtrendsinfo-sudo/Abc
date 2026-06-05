@@ -421,17 +421,40 @@ class CdmViewModel(
         _etaMinutes.value = etaMin
     }
 
+    fun hasLocationPermission(): Boolean {
+        return androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    fun enableDeviceLocationAfterPermission() {
+        if (!settingsManager.isSimulationEnabled()) {
+            requestDeviceLocation()
+        }
+    }
+
     private fun startDeviceLocationOrSimulation() {
         if (settingsManager.isSimulationEnabled()) {
             // Simulator default Doha position
             _riderLocation.value = Pair(DEFAULT_LAT, DEFAULT_LNG)
         } else {
-            requestDeviceLocation()
+            if (hasLocationPermission()) {
+                requestDeviceLocation()
+            } else {
+                _riderLocation.value = Pair(DEFAULT_LAT, DEFAULT_LNG)
+            }
         }
     }
 
     @SuppressLint("MissingPermission")
     private fun requestDeviceLocation() {
+        if (locationCallback != null) return // Avoid duplicate bindings
+        if (!hasLocationPermission()) return // Extra check for AppOps and security compliance
         try {
             fusedLocationClient.lastLocation.addOnSuccessListener { loc: Location? ->
                 if (loc != null) {
@@ -468,6 +491,10 @@ class CdmViewModel(
 
     @SuppressLint("MissingPermission")
     fun moveToLiveLocation(onSuccess: (Pair<Double, Double>) -> Unit) {
+        if (!hasLocationPermission()) {
+            onSuccess(_riderLocation.value)
+            return
+        }
         try {
             fusedLocationClient.lastLocation.addOnSuccessListener { loc: Location? ->
                 if (loc != null) {

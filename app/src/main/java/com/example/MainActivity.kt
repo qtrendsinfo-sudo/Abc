@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -85,6 +87,22 @@ class MainActivity : FragmentActivity() {
                 val isLoggedIn by viewModel.isLoggedIn.collectAsState()
                 val isAppLocked by viewModel.isAppLocked.collectAsState()
                 var showSplashScreen by remember { mutableStateOf(true) }
+                var playServicesAvailable by remember { mutableStateOf(true) }
+
+                LaunchedEffect(Unit) {
+                    try {
+                        val apiAvailability = com.google.android.gms.common.GoogleApiAvailability.getInstance()
+                        val resultCode = apiAvailability.isGooglePlayServicesAvailable(this@MainActivity)
+                        if (resultCode != com.google.android.gms.common.ConnectionResult.SUCCESS) {
+                            playServicesAvailable = false
+                            if (apiAvailability.isUserResolvableError(resultCode)) {
+                                apiAvailability.getErrorDialog(this@MainActivity, resultCode, 9000)?.show()
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        playServicesAvailable = false
+                    }
+                }
 
                 val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -93,6 +111,7 @@ class MainActivity : FragmentActivity() {
                     val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
                     if (fineGranted || coarseGranted) {
                         Toast.makeText(this@MainActivity, "Location permission granted safely!", Toast.LENGTH_SHORT).show()
+                        viewModel.enableDeviceLocationAfterPermission()
                     } else {
                         Toast.makeText(this@MainActivity, "Location permission denied. Running in simulator override mode.", Toast.LENGTH_LONG).show()
                     }
@@ -105,12 +124,16 @@ class MainActivity : FragmentActivity() {
 
                 LaunchedEffect(showSplashScreen) {
                     if (!showSplashScreen) {
-                        permissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
+                        if (viewModel.hasLocationPermission()) {
+                            viewModel.enableDeviceLocationAfterPermission()
+                        } else {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
@@ -138,10 +161,25 @@ class MainActivity : FragmentActivity() {
                                     )
                                 }
                                 else -> {
-                                    MapScreen(
-                                        viewModel = viewModel,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                                    if (playServicesAvailable) {
+                                        MapScreen(
+                                            viewModel = viewModel,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        PlayServicesFallbackScreen(
+                                            isDarkTheme = isDarkTheme,
+                                            onRetry = {
+                                                try {
+                                                    val apiAvailability = com.google.android.gms.common.GoogleApiAvailability.getInstance()
+                                                    val resultCode = apiAvailability.isGooglePlayServicesAvailable(this@MainActivity)
+                                                    playServicesAvailable = (resultCode == com.google.android.gms.common.ConnectionResult.SUCCESS)
+                                                } catch (e: Throwable) {
+                                                    playServicesAvailable = false
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -273,6 +311,66 @@ class MainActivity : FragmentActivity() {
                 ),
                 101
             )
+        }
+    }
+
+    @Composable
+    fun PlayServicesFallbackScreen(isDarkTheme: Boolean, onRetry: () -> Unit) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (isDarkTheme) Color(0xFF0F172A) else Color(0xFFF8FAFC)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Warning",
+                    tint = Color(0xFFFF5E00),
+                    modifier = Modifier.size(64.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Google Play Services Required",
+                    style = TextStyle(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDarkTheme) Color.White else Color(0xFF0F172A),
+                        textAlign = TextAlign.Center
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "This premium CDM finder application relies on Google Maps SDK. Please make sure Google Play Services are installed & updated on your device to enable the live interactive mapping system.",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5E00)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("Retry Verification", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
         }
     }
 }
