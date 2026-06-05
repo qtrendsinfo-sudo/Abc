@@ -66,6 +66,33 @@ fun MapScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var locationPermissionGranted by remember {
+        mutableStateOf(
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            locationPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            delay(1000)
+        }
+    }
+
     // ViewModel State Observers
     val riderLoc by viewModel.riderLocation.collectAsState()
     val riderSpeed by viewModel.riderSpeed.collectAsState()
@@ -131,9 +158,9 @@ fun MapScreen(
             )
         }
 
-        val mapProperties = remember(isDarkTheme) {
+        val mapProperties = remember(isDarkTheme, locationPermissionGranted) {
             MapProperties(
-                isMyLocationEnabled = true
+                isMyLocationEnabled = locationPermissionGranted
             )
         }
 

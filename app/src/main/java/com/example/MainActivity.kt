@@ -67,9 +67,6 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Request standard GPS accurate finer location permissions initially
-        checkAndRequestLocationPermissions()
-
         setContent {
             val context = applicationContext
             val settingsManager = remember { SettingsManager(context) }
@@ -89,9 +86,32 @@ class MainActivity : FragmentActivity() {
                 val isAppLocked by viewModel.isAppLocked.collectAsState()
                 var showSplashScreen by remember { mutableStateOf(true) }
 
+                val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+                    val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+                    if (fineGranted || coarseGranted) {
+                        Toast.makeText(this@MainActivity, "Location permission granted safely!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@MainActivity, "Location permission denied. Running in simulator override mode.", Toast.LENGTH_LONG).show()
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     delay(2000)
                     showSplashScreen = false
+                }
+
+                LaunchedEffect(showSplashScreen) {
+                    if (!showSplashScreen) {
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
                 }
 
                 Scaffold(
