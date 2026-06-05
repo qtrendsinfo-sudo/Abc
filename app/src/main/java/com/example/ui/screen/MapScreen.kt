@@ -206,7 +206,8 @@ fun MapScreen(
                     state = rememberMarkerState(position = LatLng(riderLoc.first, riderLoc.second)),
                     title = "My Position",
                     snippet = "Current Location",
-                    icon = markerIconRider
+                    icon = markerIconRider,
+                    zIndex = 500f
                 )
 
                 // Display all 131 positions on Google Map with custom minimalist micro-markers
@@ -538,12 +539,28 @@ fun MapScreen(
         // ==========================================
         FloatingActionButton(
             onClick = {
+                // Instantly trigger camera frame animation to current rider tracker dot on UI thread
+                scope.launch {
+                    try {
+                        cameraPositionState.animate(
+                            CameraUpdateFactory.newLatLngZoom(LatLng(riderLoc.first, riderLoc.second), 16f),
+                            800
+                        )
+                    } catch (e: Throwable) {
+                        // Safe exception fallthrough
+                    }
+                }
+                // Async fallback to fetch any freshly requested hardware GPS coordinates
                 viewModel.moveToLiveLocation { location ->
                     scope.launch {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(LatLng(location.first, location.second), 16f),
-                            1000
-                        )
+                        try {
+                            cameraPositionState.animate(
+                                CameraUpdateFactory.newLatLngZoom(LatLng(location.first, location.second), 16f),
+                                800
+                            )
+                        } catch (e: Throwable) {
+                            // Safe fallback
+                        }
                     }
                 }
                 Toast.makeText(context, "Centered map on your live GPS location", Toast.LENGTH_SHORT).show()
@@ -1224,35 +1241,66 @@ fun createCustomMarkerIcon(context: Context, status: String, isDark: Boolean): B
         // Explicitly initialize the Maps SDK to ensure BitmapDescriptorFactory is ready
         com.google.android.gms.maps.MapsInitializer.initialize(context)
         
-        val size = 24 // 24px diameter, ultra sharp minimalist micro dots
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        
-        // Select color based on machine status
-        val color = when (status) {
-            "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Coral Red
-            "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber Orange
-            "RIDER" -> 0xFFFF5E00.toInt() // Signature Talabat Orange for current Rider Spot
-            else -> if (isDark) 0xFF00B0FF.toInt() else 0xFF0083FF.toInt() // Premium Azure Blue micro dots for active spots
+        if (status == "RIDER") {
+            // Highly-visible maps/gps blue location tracker with concentric outer glow & drop shadows
+            val size = 36 // Larger 36px footprint for supreme visibility on zoom out
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            
+            // 1. Translucent Soft Blue Outer Pulse/Halo (25% opacity)
+            val haloPaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(0x400084FF.toInt())
+            }
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f, haloPaint)
+            
+            // 2. Solid White Boundary Ring
+            val whitePaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(0xFFFFFFFF.toInt())
+            }
+            canvas.drawCircle(size / 2f, size / 2f, 12f, whitePaint)
+            
+            // 3. Crisp Signature Blue Core
+            val corePaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(0xFF007AFF.toInt()) // Standard GPS Navigation Blue
+            }
+            canvas.drawCircle(size / 2f, size / 2f, 8.5f, corePaint)
+            
+            BitmapDescriptorFactory.fromBitmap(bitmap)
+        } else {
+            val size = 22 // Ultra sharp, clutter free 22px micro dots
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            
+            val color = when (status) {
+                "DOWN" -> if (isDark) 0xFFEF4444.toInt() else 0xFFDC2626.toInt() // Coral Red
+                "CROWDED" -> if (isDark) 0xFFF59E0B.toInt() else 0xFFD97706.toInt() // Amber Orange
+                else -> if (isDark) 0xFF00B0FF.toInt() else 0xFF0083FF.toInt() // Premium Azure Blue micro-dots
+            }
+            
+            // White background ring
+            val borderPaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(0xFFFFFFFF.toInt())
+            }
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f, borderPaint)
+            
+            // Fill color
+            val fillPaint = Paint().apply {
+                isAntiAlias = true
+                setStyle(Paint.Style.FILL)
+                setColor(color)
+            }
+            canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2.5f, fillPaint)
+            
+            BitmapDescriptorFactory.fromBitmap(bitmap)
         }
-        
-        // Draw white outer halo
-        val borderPaint = Paint().apply {
-            isAntiAlias = true
-            setStyle(Paint.Style.FILL)
-            setColor(0xFFFFFFFF.toInt())
-        }
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f, borderPaint)
-        
-        // Draw inner colored status dot
-        val fillPaint = Paint().apply {
-            isAntiAlias = true
-            setStyle(Paint.Style.FILL)
-            setColor(color)
-        }
-        canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - 2.5f, fillPaint)
-        
-        BitmapDescriptorFactory.fromBitmap(bitmap)
     } catch (e: Throwable) {
         // Fallback safely to default marker if SDK or bitmap generation fails
         null

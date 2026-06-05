@@ -48,6 +48,8 @@ import kotlinx.coroutines.delay
 
 class MainActivity : FragmentActivity() {
 
+    private lateinit var viewModel: CdmViewModel
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -58,9 +60,10 @@ class MainActivity : FragmentActivity() {
             val fineGranted = grantResults.getOrNull(0) == PackageManager.PERMISSION_GRANTED
             val coarseGranted = grantResults.getOrNull(1) == PackageManager.PERMISSION_GRANTED
             if (fineGranted || coarseGranted) {
-                Log.d("MainActivity", "GPS tracking permissions successfully granted.")
+                Toast.makeText(this@MainActivity, "Location permission granted safely!", Toast.LENGTH_SHORT).show()
+                viewModel.enableDeviceLocationAfterPermission()
             } else {
-                Log.d("MainActivity", "GPS tracking permissions denied. Falling back to Doha simulator.")
+                Toast.makeText(this@MainActivity, "Location permission denied. Running in simulator override mode.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -69,18 +72,17 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val context = applicationContext
+        val settingsManager = SettingsManager(context)
+        val database = AppDatabase.getDatabase(context)
+        val repository = CdmRepository(database.cdmDao(), settingsManager)
+
+        viewModel = androidx.lifecycle.ViewModelProvider(
+            this,
+            CdmViewModelFactory(repository, settingsManager, context)
+        ).get(CdmViewModel::class.java)
+
         setContent {
-            val context = applicationContext
-            val settingsManager = remember { SettingsManager(context) }
-            val database = remember { AppDatabase.getDatabase(context) }
-            val repository = remember {
-                CdmRepository(database.cdmDao(), settingsManager)
-            }
-
-            val viewModel: CdmViewModel = viewModel(
-                factory = CdmViewModelFactory(repository, settingsManager, context)
-            )
-
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
 
             MyApplicationTheme(darkTheme = isDarkTheme, dynamicColor = false) {
@@ -104,19 +106,6 @@ class MainActivity : FragmentActivity() {
                     }
                 }
 
-                val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestMultiplePermissions()
-                ) { permissions ->
-                    val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-                    val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-                    if (fineGranted || coarseGranted) {
-                        Toast.makeText(this@MainActivity, "Location permission granted safely!", Toast.LENGTH_SHORT).show()
-                        viewModel.enableDeviceLocationAfterPermission()
-                    } else {
-                        Toast.makeText(this@MainActivity, "Location permission denied. Running in simulator override mode.", Toast.LENGTH_LONG).show()
-                    }
-                }
-
                 LaunchedEffect(Unit) {
                     delay(2000)
                     showSplashScreen = false
@@ -127,11 +116,13 @@ class MainActivity : FragmentActivity() {
                         if (viewModel.hasLocationPermission()) {
                             viewModel.enableDeviceLocationAfterPermission()
                         } else {
-                            permissionLauncher.launch(
+                            ActivityCompat.requestPermissions(
+                                this@MainActivity,
                                 arrayOf(
                                     Manifest.permission.ACCESS_FINE_LOCATION,
                                     Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
+                                ),
+                                101
                             )
                         }
                     }
