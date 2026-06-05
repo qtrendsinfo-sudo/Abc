@@ -519,6 +519,10 @@ class CdmViewModel(
         }
     }
 
+    fun updateRiderLocation(latitude: Double, longitude: Double) {
+        _riderLocation.value = Pair(latitude, longitude)
+    }
+
     @SuppressLint("MissingPermission")
     fun moveToLiveLocation(onSuccess: (Pair<Double, Double>) -> Unit) {
         if (isRunningInSimulation() || !hasLocationPermission()) {

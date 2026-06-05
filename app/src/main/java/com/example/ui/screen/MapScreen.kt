@@ -134,6 +134,52 @@ fun MapScreen(
     val isBiometricsEnabledActive by viewModel.isBiometricsEnabled.collectAsState()
     val nearestMachine by viewModel.nearestMachine.collectAsState()
 
+    val fusedLocationClient = remember {
+        com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    var userLiveLocation by remember {
+        mutableStateOf(LatLng(riderLoc.first, riderLoc.second))
+    }
+
+    LaunchedEffect(riderLoc) {
+        userLiveLocation = LatLng(riderLoc.first, riderLoc.second)
+    }
+
+    LaunchedEffect(locationPermissionGranted) {
+        if (locationPermissionGranted) {
+            try {
+                val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
+                    com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                    2000L
+                )
+                .setMinUpdateIntervalMillis(1000L)
+                .build()
+
+                val locationCallback = object : com.google.android.gms.location.LocationCallback() {
+                    override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
+                        val lastLocation = locationResult.lastLocation
+                        if (lastLocation != null) {
+                            val newLatLng = LatLng(lastLocation.latitude, lastLocation.longitude)
+                            userLiveLocation = newLatLng
+                            viewModel.updateRiderLocation(lastLocation.latitude, lastLocation.longitude)
+                        }
+                    }
+                }
+
+                fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    android.os.Looper.getMainLooper()
+                )
+            } catch (e: SecurityException) {
+                // Safe fallthrough
+            } catch (e: Throwable) {
+                // Safe fallthrough
+            }
+        }
+    }
+
     // Premium micro-marker icon caching of bitmap descriptors
     val markerIconActive = remember(isDarkTheme) { createCustomMarkerIcon(context, "ACTIVE", isDarkTheme) }
     val markerIconCrowded = remember(isDarkTheme) { createCustomMarkerIcon(context, "CROWDED", isDarkTheme) }
@@ -183,9 +229,9 @@ fun MapScreen(
             )
         }
 
-        val mapProperties = remember(isDarkTheme) {
+        val mapProperties = remember(isDarkTheme, locationPermissionGranted) {
             MapProperties(
-                isMyLocationEnabled = false
+                isMyLocationEnabled = locationPermissionGranted
             )
         }
 
@@ -202,13 +248,35 @@ fun MapScreen(
             ) {
                 // Draw custom marker representing the rider's physical spot on the Google Map
                 val markerIconRider = remember(isDarkTheme) { createCustomMarkerIcon(context, "RIDER", isDarkTheme) }
+                val riderMarkerState = rememberMarkerState(position = userLiveLocation)
+                LaunchedEffect(userLiveLocation) {
+                    riderMarkerState.position = userLiveLocation
+                }
                 Marker(
-                    state = rememberMarkerState(position = LatLng(riderLoc.first, riderLoc.second)),
+                    state = riderMarkerState,
                     title = "My Position",
                     snippet = "Current Location",
                     icon = markerIconRider,
                     zIndex = 500f
                 )
+
+                // Draw real-time dynamic polyline path to the selected CDM terminal when navigating
+                if (isNavigating && selectedMachine != null) {
+                    val destination = LatLng(selectedMachine!!.latitude, selectedMachine!!.longitude)
+                    val routePoints = remember(userLiveLocation, destination) {
+                        generateRoutePoints(userLiveLocation, destination)
+                    }
+                    Polyline(
+                        points = routePoints,
+                        color = Color(0xFF00C853), // High-visibility Talabat/Uber Green #00C853 line!
+                        width = 14f
+                    )
+                    Polyline(
+                        points = routePoints,
+                        color = Color(0xFFE0F7FA), // Soft inner high-contrast cyan highlight path
+                        width = 4f
+                    )
+                }
 
                 // Display all 131 positions on Google Map with custom minimalist micro-markers
                 filteredMachines.forEach { machine ->
@@ -494,7 +562,7 @@ fun MapScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = if (selectedMachine != null) 360.dp else 24.dp)
+                .padding(bottom = if (selectedMachine != null) 420.dp else 24.dp)
                 .zIndex(10f)
         ) {
             Card(
@@ -543,7 +611,7 @@ fun MapScreen(
                 scope.launch {
                     try {
                         cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(LatLng(riderLoc.first, riderLoc.second), 16f),
+                            CameraUpdateFactory.newLatLngZoom(userLiveLocation, 16f),
                             800
                         )
                     } catch (e: Throwable) {
@@ -554,8 +622,10 @@ fun MapScreen(
                 viewModel.moveToLiveLocation { location ->
                     scope.launch {
                         try {
+                            val targetLatLng = LatLng(location.first, location.second)
+                            userLiveLocation = targetLatLng
                             cameraPositionState.animate(
-                                CameraUpdateFactory.newLatLngZoom(LatLng(location.first, location.second), 16f),
+                                CameraUpdateFactory.newLatLngZoom(targetLatLng, 16f),
                                 800
                             )
                         } catch (e: Throwable) {
@@ -571,7 +641,7 @@ fun MapScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
-                .padding(bottom = if (selectedMachine != null) 360.dp else 24.dp, end = 16.dp)
+                .padding(bottom = if (selectedMachine != null) 420.dp else 24.dp, end = 16.dp)
                 .size(54.dp)
                 .testTag("gps_center_fab")
         ) {
@@ -603,7 +673,7 @@ fun MapScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(350.dp)
+                        .height(410.dp)
                         .testTag("selected_machine_slider_panel")
                 ) {
                     Column(
@@ -872,6 +942,47 @@ fun MapScreen(
                                     color = Color.White
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Real-time external navigation launcher
+                        Button(
+                            onClick = {
+                                try {
+                                    val uri = "waze://?ll=${machine.latitude},${machine.longitude}&navigate=yes"
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    val webUri = "https://waze.com/ul?ll=${machine.latitude},${machine.longitude}&navigate=yes"
+                                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUri))
+                                    context.startActivity(webIntent)
+                                    Toast.makeText(context, "Opening Waze Live Routing...", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF00C853), // Standard Talabat Green Match
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("waze_navigation_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "OPEN IN WAZE ROUTING APP",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
                         }
                     }
                 }
@@ -1576,5 +1687,25 @@ fun CdmSimulatedMapFallback(
             }
         }
     }
+}
+
+fun generateRoutePoints(start: LatLng, end: LatLng): List<LatLng> {
+    val points = mutableListOf<LatLng>()
+    points.add(start)
+    
+    val latDiff = end.latitude - start.latitude
+    val lngDiff = end.longitude - start.longitude
+    
+    val p1 = LatLng(start.latitude + latDiff * 0.35, start.longitude)
+    val p2 = LatLng(start.latitude + latDiff * 0.35, start.longitude + lngDiff * 0.5)
+    val p3 = LatLng(start.latitude + latDiff * 0.70, start.longitude + lngDiff * 0.5)
+    val p4 = LatLng(start.latitude + latDiff * 0.70, end.longitude)
+    
+    points.add(p1)
+    points.add(p2)
+    points.add(p3)
+    points.add(p4)
+    points.add(end)
+    return points
 }
 
