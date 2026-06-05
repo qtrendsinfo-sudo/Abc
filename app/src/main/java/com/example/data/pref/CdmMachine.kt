@@ -164,10 +164,53 @@ object CdmDataProvider {
     )
 
     fun getInitialMachines(): List<CdmMachine> {
+        val anchors = listOf(
+            Pair(25.2555, 51.4622), // Al Shariyas Food Center, Al Aziziya
+            Pair(25.2392, 51.4542), // Al Jazeera Petrol Station, Ain Khaled
+            Pair(25.2867, 51.5031), // Talabat Mart Al Sadd
+            Pair(25.2472, 51.4894), // Talabat Mart Abu Hamour
+            Pair(25.2590, 51.4320)  // Talabat Mart Bu Sidra
+        )
+
         return rawMachines.map { raw ->
-            val (lat, lng) = getCoordinatesForBranch(raw.id, raw.branchName)
-            // Generate some random initial status reports to make it extremely dynamic and colorful!
+            val anchorIndex = raw.id % 5
+            val anchor = anchors[anchorIndex]
+
+            // Precisely map and inject names/coordinates for the 5 requested terminals at IDs 1-5
+            val (name, branchNameText, lat, lng) = when (raw.id) {
+                1 -> {
+                    val a = anchors[0]
+                    Quad("Al Shariyas Food Center", "Al Aziziya Branch-Al Shariyas Food Center", a.first, a.second)
+                }
+                2 -> {
+                    val a = anchors[1]
+                    Quad("Al Jazeera Petrol Station", "Ain Khaled Branch-Al Jazeera Petrol Station", a.first, a.second)
+                }
+                3 -> {
+                    val a = anchors[2]
+                    Quad("Talabat Mart Al Sadd", "Al Sadd Branch-Talabat Mart Al Sadd", a.first, a.second)
+                }
+                4 -> {
+                    val a = anchors[3]
+                    Quad("Talabat Mart Abu Hamour", "Abu Hamour Branch-Talabat Mart Abu Hamour", a.first, a.second)
+                }
+                5 -> {
+                    val a = anchors[4]
+                    Quad("Talabat Mart Bu Sidra", "Bu Sidra Branch-Talabat Mart Bu Sidra", a.first, a.second)
+                }
+                else -> {
+                    // Stable, pseudo-random small offsets that distribute markers purely on land Doha
+                    val offsetLat = ((raw.id * 0.00171) % 0.016) - 0.008
+                    val offsetLng = ((raw.id * 0.00213) % 0.016) - 0.008
+                    
+                    // Keep general merchant and branch names unchanged but move coordinates safely to land near anchor
+                    Quad(raw.merchantName, raw.branchName, anchor.first + offsetLat, anchor.second + offsetLng)
+                }
+            }
+
+            // Generate some realistic, dynamic status reports
             val initialStatus = when {
+                raw.id == 2 -> "ACTIVE" // The nearest "Al Jazeera Petrol Station" shown in the video must be ACTIVE
                 raw.id % 23 == 0 -> "DOWN"
                 raw.id % 17 == 0 -> "CROWDED"
                 else -> "ACTIVE"
@@ -177,97 +220,25 @@ object CdmDataProvider {
                 "CROWDED" -> "Busy / 10+ Min Backlog"
                 else -> "Fully Operational"
             }
+
             CdmMachine(
                 id = raw.id,
-                merchantName = raw.merchantName,
-                branchName = raw.branchName,
+                merchantName = name,
+                branchName = branchNameText,
                 terminalId = raw.terminalId,
                 mapsUrl = if (raw.mapsUrl.isEmpty()) "https://maps.google.com/?q=${lat},${lng}" else raw.mapsUrl,
                 latitude = lat,
                 longitude = lng,
-                isFavorite = raw.id in listOf(1, 3, 6, 12, 54), // Pre-set a few cute favorites
+                isFavorite = raw.id in listOf(1, 3, 5), // Clean predefined favorites
                 notes = "",
                 status = initialStatus,
                 lastReportType = initialReport,
-                lastReportTime = System.currentTimeMillis() - (raw.id * 300000L) % 7200000L // realistic relative times
+                lastReportTime = System.currentTimeMillis() - (raw.id * 300000L) % 7200000L
             )
         }
     }
 
-    private fun getCoordinatesForBranch(id: Int, branchName: String): Pair<Double, Double> {
-        val lower = branchName.lowercase()
-        val indexOffset = id * 0.0019
-
-        val baseLat: Double
-        val baseLng: Double
-
-        when {
-            lower.contains("sanniya") || lower.contains("saniiya") -> {
-                // Doha Industrial Area (Sanniya)
-                baseLat = 25.1950 + (id % 15) * 0.0062
-                baseLng = 51.4360 - (id % 15) * 0.0048
-            }
-            lower.contains("rayyan") -> {
-                baseLat = 25.2913 + (id % 8) * 0.0035
-                baseLng = 51.4253 + (id % 8) * -0.0028
-            }
-            lower.contains("wukair") -> {
-                baseLat = 25.1275 + (id % 5) * 0.0025
-                baseLng = 51.5835 + (id % 5) * 0.0032
-            }
-            lower.contains("wakra") -> {
-                baseLat = 25.1760 + (id % 6) * 0.0030
-                baseLng = 51.6030 - (id % 6) * 0.0025
-            }
-            lower.contains("saad") || lower.contains("salwa") -> {
-                baseLat = 25.2890 + (id % 5) * 0.0015
-                baseLng = 51.4980 - (id % 5) * 0.0012
-            }
-            lower.contains("khor") -> {
-                baseLat = 25.6880 + (id % 4) * 0.0045
-                baseLng = 51.5050 + (id % 4) * -0.0030
-            }
-            lower.contains("dafna") || lower.contains("lusail") -> {
-                baseLat = 25.3500 + (id % 6) * 0.0040
-                baseLng = 51.5280 + (id % 6) * 0.0022
-            }
-            lower.contains("omran") || lower.contains("khalifa") -> {
-                baseLat = 25.3130 + (id % 5) * 0.0020
-                baseLng = 51.4950 + (id % 5) * 0.0015
-            }
-            lower.contains("najma") || lower.contains("mansoura") || lower.contains("muntazah") -> {
-                baseLat = 25.2750 + (id % 8) * 0.0018
-                baseLng = 51.5350 + (id % 8) * -0.0014
-            }
-            lower.contains("abdel azeez") || lower.contains("abdul azeez") || lower.contains("jaber") || lower.contains("mahmood") -> {
-                baseLat = 25.2780 + (id % 6) * 0.0012
-                baseLng = 51.5250 + (id % 6) * -0.0015
-            }
-            lower.contains("muaither") -> {
-                baseLat = 25.2800 + (id % 5) * 0.0045
-                baseLng = 51.4000 + (id % 5) * 0.0038
-            }
-            lower.contains("airport") || lower.contains("hilal") || lower.contains("thumama") -> {
-                baseLat = 25.2450 + (id % 7) * 0.0028
-                baseLng = 51.5520 - (id % 7) * 0.0022
-            }
-            lower.contains("kheesa") || lower.contains("kharaitiyat") || lower.contains("salata") -> {
-                baseLat = 25.3850 + (id % 6) * 0.0035
-                baseLng = 51.4650 - (id % 6) * 0.0030
-            }
-            lower.contains("khalid") || lower.contains("hamour") || lower.contains("azizia") || lower.contains("aziziya") -> {
-                baseLat = 25.2300 + (id % 8) * 0.0030
-                baseLng = 51.4500 + (id % 8) * 0.0028
-            }
-            else -> {
-                // Doha Center distributed fallback
-                baseLat = 25.2854 + Math.sin(id.toDouble()) * 0.065
-                baseLng = 51.5310 + Math.cos(id.toDouble()) * 0.055
-            }
-        }
-
-        return Pair(baseLat, baseLng)
-    }
+    private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 }
 
 data class RawCdm(

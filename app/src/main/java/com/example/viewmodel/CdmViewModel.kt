@@ -195,8 +195,9 @@ class CdmViewModel(
     val filteredMachines: StateFlow<List<CdmMachine>> = combine(
         allMachines,
         _searchQuery,
-        _activeFilter
-    ) { list, query, filter ->
+        _activeFilter,
+        _riderLocation
+    ) { list, query, filter, riderLoc ->
         var result = list
 
         // Apply visual category filter
@@ -223,7 +224,6 @@ class CdmViewModel(
         }
 
         // Sort by proximity to rider location!
-        val riderLoc = _riderLocation.value
         result.sortedBy { calculateDistance(riderLoc.first, riderLoc.second, it.latitude, it.longitude) }
     }.stateIn(
         scope = viewModelScope,
