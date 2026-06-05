@@ -33,7 +33,6 @@ class CdmViewModel(
 
     // List of CDM machines
     val allMachines: StateFlow<List<CdmMachine>> = repository.allCdmMachines
-        .map { list -> list.filter { it.id in 1..5 } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -41,7 +40,6 @@ class CdmViewModel(
         )
 
     val favoriteMachines: StateFlow<List<CdmMachine>> = repository.favoriteMachines
-        .map { list -> list.filter { it.id in 1..5 } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

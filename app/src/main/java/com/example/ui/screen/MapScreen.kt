@@ -444,237 +444,86 @@ fun MapScreen(
         }
 
         // ==========================================
-        // 2. FLOATING TOP CONTROLLER / SEARCH BAR WITH SHADOW
+        // 2. CLEAN TOP SECTOR & STATUS PILL (MATCH 25510.jpg)
         // ==========================================
-        Column(
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .fillMaxWidth()
         ) {
+            // Standalone circular white card for hamburger menu icon (TOP LEFT)
             Card(
-                shape = RoundedCornerShape(28.dp),
+                shape = CircleShape,
                 colors = CardDefaults.cardColors(
                     containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .size(48.dp)
+                    .align(Alignment.CenterStart)
+                    .clickable { showHamburgerMenu = true }
+                    .testTag("map_hamburger_menu")
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Hamburger menu representing legal rules and controls",
+                        tint = if (isDarkTheme) Color.White else Color(0xFF0F172A)
+                    )
+                }
+            }
+
+            // Standalone floating status pill (TOP CENTER)
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clickable { 
+                        isOnlineRider = !isOnlineRider
+                        Toast.makeText(context, if (isOnlineRider) "Rider Status: Online" else "Rider Status: Offline", Toast.LENGTH_SHORT).show()
+                    }
+                    .testTag("map_status_pill")
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    IconButton(
-                        onClick = { showHamburgerMenu = true },
-                        modifier = Modifier.testTag("map_hamburger_menu")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Hamburger menu for rider legal and security configurations",
-                            tint = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF475569)
-                        )
-                    }
-
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            viewModel.search(it)
-                            showDropdown = it.isNotBlank()
-                        },
-                        textStyle = TextStyle(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
-                        ),
-                        placeholder = {
-                            Text(
-                                "Search Talabat positions in Qatar...",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)
-                            )
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedTextColor = if (isDarkTheme) Color.White else Color(0xFF0F172A),
-                            unfocusedTextColor = if (isDarkTheme) Color.White else Color(0xFF0F172A)
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .testTag("map_search_field"),
-                        singleLine = true
-                    )
-
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = {
-                            searchQuery = ""
-                            viewModel.search("")
-                            showDropdown = false
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear inquiry keyword parameters",
-                                tint = Color(0xFFFF5E00)
-                            )
-                        }
-                    }
-
-                    // Theme Quick Mode toggle button
-                    IconButton(
-                        onClick = { viewModel.setDarkTheme(!isDarkTheme) },
-                        modifier = Modifier.testTag("quick_theme_trigger_btn")
-                    ) {
-                        Icon(
-                            imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = "Switch between Waze Day Mode and Midnight Neon Night Mode",
-                            tint = if (isDarkTheme) Color(0xFFFFB74D) else Color(0xFF334155)
-                        )
-                    }
-                }
-            }
-
-            // ==========================================
-            // SLEEK FLOATING DROPDOWN SUGGESTIONS MENU COUPLING
-            // ==========================================
-            Box(
-                modifier = Modifier.fillMaxWidth().zIndex(999f),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showDropdown && searchQuery.trim().length >= 1 && filteredMachines.isNotEmpty(),
-                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
-                ) {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .heightIn(max = 280.dp)
-                    ) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(filteredMachines) { machine ->
-                                val dist = viewModel.calculateDistance(
-                                    riderLoc.first, riderLoc.second,
-                                    machine.latitude, machine.longitude
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            viewModel.selectMachine(machine)
-                                            editNotesText = machine.notes
-                                            isEditingNotes = false
-                                            
-                                            // Hide dropdown on click
-                                            showDropdown = false
-                                            
-                                            scope.launch {
-                                                try {
-                                                    cameraPositionState.animate(
-                                                        CameraUpdateFactory.newLatLngZoom(
-                                                            LatLng(machine.latitude, machine.longitude),
-                                                            15f
-                                                        ),
-                                                        1000
-                                                    )
-                                                } catch (e: Throwable) {}
-                                            }
-                                            
-                                            // Trigger navigation and path routing line drawing
-                                            viewModel.startNavigationSimulation()
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = "Suggested Machine",
-                                        tint = Color(0xFFFF5E00),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = machine.merchantName,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
-                                        )
-                                        Text(
-                                            text = machine.branchName,
-                                            fontSize = 11.sp,
-                                            color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "${"%.2f".format(dist)} km",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFFF5E00)
-                                    )
-                                }
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9)))
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ==========================================
-            // 3. HORIZONTAL DYNAMIC REGIONAL CHIPS
-            // ==========================================
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val filters = listOf(
-                    "ALL" to "All Positions",
-                    "FAVORITE" to "⭐ Favorites"
-                )
-                items(filters) { (type, title) ->
-                    val isSelected = activeFilter == type
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(
-                                if (isSelected) Color(0xFFFF5E00) else (if (isDarkTheme) Color(0xFF1E293B) else Color.White)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) Color(0xFFFF8F40) else (if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)),
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .clickable { viewModel.setFilter(type) }
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        modifier = Modifier.padding(end = 12.dp)
                     ) {
                         Text(
-                            text = title,
-                            color = if (isSelected) Color.White else (if (isDarkTheme) Color(0xFFE2E8F0) else Color(0xFF475569)),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            text = "Status",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B)
+                        )
+                        Text(
+                            text = if (isOnlineRider) "Online" else "Offline",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
                         )
                     }
+                    // Glowing green/gray dot container
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (isOnlineRider) Color(0xFF00C853) else Color(0xFF94A3B8))
+                    )
                 }
             }
+        }
 
             // ==========================================
             // PREMIER DYNAMIC CLOSEST TERMINAL OVERLAY
@@ -772,51 +621,84 @@ fun MapScreen(
                     }
                 }
             }
-        }
 
         // ==========================================
-        // 4. DUTY STATUS TOGGLE (GO ONLINE / GO OFFLINE)
+        // 4. PREMIUM TERMINAL-FOCUSED BOTTOM SHEET (WHEN NO MACHINE SELECTED)
         // ==========================================
-        Box(
+        AnimatedVisibility(
+            visible = selectedMachine == null,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = if (selectedMachine != null) 420.dp else 24.dp)
                 .zIndex(10f)
         ) {
             Card(
-                shape = RoundedCornerShape(30.dp),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isOnlineRider) Color(0xFF00C853) else Color(0xFF64748B)
+                    containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
                 modifier = Modifier
-                    .clickable { 
-                        isOnlineRider = !isOnlineRider
-                        Toast.makeText(context, if (isOnlineRider) "Rider Duty Status: Ready and Online" else "Offline: System standby", Toast.LENGTH_SHORT).show()
-                    }
-                    .testTag("rider_duty_toggle")
+                    .fillMaxWidth()
+                    .testTag("searching_machines_bottom_sheet")
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 20.dp)
                 ) {
+                    // Small visual sheet indicator handle bar
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(if (isOnlineRider) Color.White else Color(0xFFCBD5E1))
+                            .size(36.dp, 4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(if (isDarkTheme) Color(0xFF475569) else Color(0xFFE2E8F0))
+                            .align(Alignment.CenterHorizontally)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = if (isOnlineRider) "YOU ARE ONLINE" else "YOU ARE OFFLINE",
-                        style = TextStyle(
-                            color = Color.White,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 13.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        // Premium Info Icon (ⓘ) aligned perfectly matching professional padding
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFFF5E00).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "i",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFFF5E00),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Searching for nearest machines...",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) Color.White else Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Real-time tracking active. Drive towards high-density sectors for instant cash deposits.",
+                                fontSize = 12.sp,
+                                color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -859,7 +741,7 @@ fun MapScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
-                .padding(bottom = if (selectedMachine != null) 420.dp else 24.dp, end = 16.dp)
+                .padding(bottom = if (selectedMachine != null) 420.dp else 135.dp, end = 16.dp)
                 .size(54.dp)
                 .testTag("gps_center_fab")
         ) {

@@ -172,41 +172,45 @@ object CdmDataProvider {
             Pair(25.2590, 51.4320)  // Talabat Mart Bu Sidra
         )
 
-        val selectedIds = listOf(1, 2, 3, 4, 5)
-        return rawMachines.filter { it.id in selectedIds }.map { raw ->
-            val anchorIndex = raw.id - 1
+        return rawMachines.map { raw ->
+            val anchorIndex = raw.id % 5
             val anchor = anchors[anchorIndex]
 
-            // Precisely map and inject names/coordinates for the 5 requested terminals at IDs 1-5
+            // Precisely map and inject names/coordinates for specified terminals
             val (name, branchNameText, lat, lng) = when (raw.id) {
-                1 -> {
-                    val a = anchors[0]
-                    Quad("Al Shariyas Food Center", "Al Aziziya-Al Shariyas Food Center", a.first, a.second)
-                }
-                2 -> {
-                    val a = anchors[1]
-                    Quad("Al Jazeera Petrol Station", "Ain Khaled-Al Jazeera Petrol Station", a.first, a.second)
-                }
-                3 -> {
-                    val a = anchors[2]
-                    Quad("Talabat Mart Al Sadd", "Al Sadd-Talabat Mart Al Sadd", a.first, a.second)
-                }
-                4 -> {
-                    val a = anchors[3]
-                    Quad("Talabat Mart Abu Hamour", "Abu Hamour-Talabat Mart Abu Hamour", a.first, a.second)
-                }
-                5 -> {
-                    val a = anchors[4]
-                    Quad("Talabat Mart Bu Sidra", "Bu Sidra-Talabat Mart Bu Sidra", a.first, a.second)
-                }
+                1 -> Quad("KeyBS Merchant", "Bin Omran Branch-KeyBS Merchant", 25.3120, 51.5010)
+                2 -> Quad("Fresh Way Supermarket", "Al Rayyan Branch-Fresh Way Supermarket", 25.2910, 51.4240)
+                3 -> Quad("Zadak Hypermarket", "Sanniya Branch-Zadak Hypermarket", 25.1950, 51.4420)
+                4 -> Quad("LU Grocery", "Sanniya Branch-LU Grocery", 25.2010, 51.4390)
+                5 -> Quad("Khayrat Al Doha Hypermarket", "Mamoura Banch-Khayrat Al Doha", 25.2490, 51.4980)
+                6 -> Quad("Point Eight Supermarket", "Al Wukair Branch-Point Eight Supermarket", 25.1480, 51.5890)
+                7 -> Quad("Prime Touch Delivery", "Sanniya Branch-Prime Touch Delivery", 25.1880, 51.4550)
+                8 -> Quad("Cassava Mini Mart", "Al Saad Branch-Cassava Mini Mart", 25.2890, 51.5060)
+                9 -> Quad("Al Abid Supermarket", "Al Khor Branch-Al Abid Supermarket", 25.6880, 51.5050)
+                10 -> Quad("Dafna Prime Mart", "Dafna Branch- Dafna Prime Mart", 25.3320, 51.5240)
+                11 -> Quad("Madeena Hypermarket", "Wakra Branch- Madeena Hypermarket", 25.1720, 51.6030)
+                12 -> Quad("Al Shariyas Food Center", "Al Saad Branch-Al Shariyas Food Center", 25.2860, 51.5090)
+                13 -> Quad("Wadi Al Dahab", "Freej Abdul Azeez Branch-Wadi Al Dahab", 25.2750, 51.5240)
+                14 -> Quad("Muraikh Food Complex", "Muaither Branch-Muraikh Food Complex", 25.2820, 51.4010)
+                15 -> Quad("Mobile Point", "Wakra Branch-Mobile Point", 25.1690, 51.6080)
+                16 -> Quad("Al Hamed Grocery", "Najma Branch-Al Hamed Grocery", 25.2710, 51.5420)
+                17 -> Quad("Metro Mart", "Souq Al Jaber Branch-Metro Mart", 25.2880, 51.5350)
+                18 -> Quad("Wusail Shopping Centre", "Um Salal Ali Branch-Wusail Shopping Centre", 25.4190, 51.4080)
+                19 -> Quad("Sanniya Food City Market", "Sanniya Branch-Sanniya Food City Market", 25.1990, 51.4480)
+                20 -> Quad("Al Hadoud Supermarket", "Al Khor Branch-Al Hadoud Supermarket", 25.6910, 51.4990)
+                118 -> Quad("PRIME MART-2", "Salwa Road-Prime Mart-2", 25.2510, 51.4690)
+                126 -> Quad("Prime Mart", "Midmac Signal Branch-Prime Mart", 25.2680, 51.4920)
+                131 -> Quad("Nana Food Mart", "UmSalal Ali Branch- Nana Food Mart", 25.4210, 51.4120)
                 else -> {
-                    Quad(raw.merchantName, raw.branchName, anchor.first, anchor.second)
+                    // Stable, pseudo-random small offsets that distribute markers purely on land Doha
+                    val offsetLat = ((raw.id * 0.00171) % 0.025) - 0.012
+                    val offsetLng = ((raw.id * 0.00213) % 0.025) - 0.012
+                    Quad(raw.merchantName, raw.branchName, anchor.first + offsetLat, anchor.second + offsetLng)
                 }
             }
 
-            // Generate some realistic, dynamic status reports
             val initialStatus = when {
-                raw.id == 2 -> "ACTIVE" // The nearest "Al Jazeera Petrol Station" shown in the video must be ACTIVE
+                raw.id == 2 -> "ACTIVE"
                 raw.id % 23 == 0 -> "DOWN"
                 raw.id % 17 == 0 -> "CROWDED"
                 else -> "ACTIVE"
@@ -225,7 +229,7 @@ object CdmDataProvider {
                 mapsUrl = if (raw.mapsUrl.isEmpty()) "https://maps.google.com/?q=${lat},${lng}" else raw.mapsUrl,
                 latitude = lat,
                 longitude = lng,
-                isFavorite = raw.id in listOf(1, 3, 5), // Clean predefined favorites
+                isFavorite = raw.id in listOf(1, 3, 5, 8, 12, 126), // Predefined favorites
                 notes = "",
                 status = initialStatus,
                 lastReportType = initialReport,
