@@ -514,14 +514,14 @@ fun MapScreen(
                                     Text("${"%.2f".format(distanceKm)} km", fontSize = 16.sp, fontWeight = FontWeight.Black, color = if (isDarkTheme) Color.White else Color(0xFF0F172A))
                                 }
 
-                                Divider(modifier = Modifier.size(1.dp, 30.dp), color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                Box(modifier = Modifier.width(1.dp).height(30.dp).background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)))
 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("ESTIMATED ETA", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8))
                                     Text("$etaMinutes Mins", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color(0xFFFF5E00))
                                 }
 
-                                Divider(modifier = Modifier.size(1.dp, 30.dp), color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                Box(modifier = Modifier.width(1.dp).height(30.dp).background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)))
 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("ROAD SPEED", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8))
@@ -747,7 +747,7 @@ fun MapScreen(
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9))
+                        HorizontalDivider(color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9))
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Switch: Theme Switch Toggle
@@ -821,7 +821,7 @@ fun MapScreen(
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9))
+                        HorizontalDivider(color = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF1F5F9))
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Legal Compliance Section (Highly Requested)
