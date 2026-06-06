@@ -397,16 +397,52 @@ fun MapScreen(
                 LaunchedEffect(userLiveLocation) {
                     riderMarkerState.position = userLiveLocation
                 }
-                Marker(
+                // Enlarged High-Visibility Real-Time Pulsing Custom Composable Blue Dot
+                val bluePulseTimeline = rememberInfiniteTransition(label = "blue_pulse")
+                val waveScale by bluePulseTimeline.animateFloat(
+                    initialValue = 1.0f, targetValue = 2.4f,
+                    animationSpec = infiniteRepeatable(animation = tween(1300, easing = LinearEasing), repeatMode = RepeatMode.Restart),
+                    label = "scale"
+                )
+                val waveAlpha by bluePulseTimeline.animateFloat(
+                    initialValue = 0.5f, targetValue = 0.0f,
+                    animationSpec = infiniteRepeatable(animation = tween(1300, easing = LinearEasing), repeatMode = RepeatMode.Restart),
+                    label = "alpha"
+                )
+
+                MarkerComposable(
                     state = riderMarkerState,
                     title = "My Position",
-                    snippet = "Current Location",
-                    icon = markerIconRider,
-                    rotation = deviceHeading,
                     flat = true,
                     anchor = Offset(0.5f, 0.5f),
                     zIndex = 500f
-                )
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(70.dp)) {
+                        // 1. Pulsing radar outer circle glow area
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .scale(waveScale)
+                                .alpha(waveAlpha)
+                                .background(Color(0xFF2979FF), CircleShape)
+                        )
+                        // 2. Crisp Core border frame
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(Color.White, CircleShape)
+                                .border(1.5.dp, Color(0x33000000), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // 3. High vis main royal blue tracker node
+                            Box(
+                                modifier = Modifier
+                                    .size(17.dp)
+                                    .background(Color(0xFF2979FF), CircleShape)
+                            )
+                        }
+                    }
+                }
 
                 // Draw real-time dynamic polyline path to the selected CDM terminal when navigating
                 if (isNavigating && selectedMachine != null) {
@@ -773,53 +809,104 @@ fun MapScreen(
             }
         }
 
-        // ==========================================
-        // 5. RELOCATION (GPS CENTER) FAB
-        // ==========================================
-        FloatingActionButton(
-            onClick = {
-                // Instantly trigger camera frame animation to current rider tracker dot on UI thread
-                scope.launch {
-                    try {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(userLiveLocation, 16f),
-                            800
-                        )
-                    } catch (e: Throwable) {
-                        // Safe exception fallthrough
-                    }
-                }
-                // Async fallback to fetch any freshly requested hardware GPS coordinates
-                viewModel.moveToLiveLocation { location ->
-                    scope.launch {
-                        try {
-                            val targetLatLng = LatLng(location.first, location.second)
-                            userLiveLocation = targetLatLng
-                            cameraPositionState.animate(
-                                CameraUpdateFactory.newLatLngZoom(targetLatLng, 16f),
-                                800
-                            )
-                        } catch (e: Throwable) {
-                            // Safe fallback
-                        }
-                    }
-                }
-            },
-            containerColor = Color.White,
-            contentColor = Color(0xFFFF5E00),
-            shape = CircleShape,
+        // =========================================================
+        // 5. 🛠️ RIGHT-SIDE CONTROLS PANEL (BLACK AND WHITE PREMIUM LOOK)
+        // =========================================================
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
-                .padding(bottom = if (selectedMachine != null) 420.dp else 135.dp, end = 16.dp)
-                .size(54.dp)
-                .testTag("gps_center_fab")
+                .padding(bottom = if (selectedMachine != null) 420.dp else 135.dp, end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.MyLocation,
-                contentDescription = "Map snap back to simulator rider coordinate dot",
-                modifier = Modifier.size(24.dp)
-            )
+            // Top Control: Pure Jet Black Recenter Button (Ref: 26075_2.jpg crosshair system)
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .shadow(6.dp, CircleShape)
+                    .background(Color(0xFF111111), CircleShape)
+                    .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+                    .clickable {
+                        // Instantly trigger camera frame animation to current rider tracker dot on UI thread
+                        scope.launch {
+                            try {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(userLiveLocation, 16f),
+                                    800
+                                )
+                            } catch (e: Throwable) {
+                                // Safe exception fallthrough
+                            }
+                        }
+                        // Async fallback to fetch any freshly requested hardware GPS coordinates
+                        viewModel.moveToLiveLocation { location ->
+                            scope.launch {
+                                try {
+                                    val targetLatLng = LatLng(location.first, location.second)
+                                    userLiveLocation = targetLatLng
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(targetLatLng, 16f),
+                                        800
+                                    )
+                                } catch (e: Throwable) {
+                                    // Safe fallback
+                                }
+                            }
+                        }
+                    }
+                    .testTag("gps_center_fab"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Recenter Navigation Framework",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            // Bottom Control: Pure White Direction Arrow Button (Ref: 26075_2.jpg arrow system placement context)
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .shadow(6.dp, CircleShape)
+                    .background(Color.White, CircleShape)
+                    .border(1.dp, Color(0x1A000000), CircleShape)
+                    .clickable {
+                        if (selectedMachine != null) {
+                            if (isNavigating) {
+                                viewModel.cancelActiveNavigation()
+                                Toast.makeText(context, "Navigation route simulation stopped.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.startNavigationSimulation()
+                                Toast.makeText(context, "Initiating GPS route simulation to terminal...", Toast.LENGTH_LONG).show()
+                            }
+                        } else if (nearestMachine != null) {
+                            viewModel.selectMachine(nearestMachine)
+                            scope.launch {
+                                try {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(LatLng(nearestMachine!!.latitude, nearestMachine!!.longitude), 16f),
+                                        800
+                                    )
+                                } catch (e: Throwable) {}
+                            }
+                            viewModel.startNavigationSimulation()
+                            Toast.makeText(context, "Navigating to nearest terminal: ${nearestMachine!!.merchantName}", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "No active target or nearest terminal found.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .testTag("direction_navigation_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "➔",
+                    color = Color(0xFF111111), // High-visibility solid black navigation icon token
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
         }
 
         // ==========================================

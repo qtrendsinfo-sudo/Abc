@@ -11,6 +11,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -182,77 +188,109 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     fun SplashScreenContent() {
-        var startAnimate by remember { mutableStateOf(false) }
-        val scaleAnim by animateFloatAsState(
-            targetValue = if (startAnimate) 1f else 0.8f,
-            animationSpec = tween(durationMillis = 1000)
-        )
+        val animateAlpha = remember { Animatable(0f) }
+        val animateScale = remember { Animatable(0.9f) }
 
         LaunchedEffect(Unit) {
-            startAnimate = true
+            animateAlpha.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
+            animateScale.animateTo(1f, animationSpec = tween(700, easing = LinearOutSlowInEasing))
         }
-
-        val splashGradient = androidx.compose.ui.graphics.Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFFFFFCFA), // Pristine bright cream
-                Color(0xFFFFF0E5), // Soft bright warm orange tint
-                Color(0xFFFFE3D1)  // Warm premium base
-            )
-        )
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(splashGradient),
+                .background(Color(0xFFF9FAFC)), // Premium clean warm-white background texture
             contentAlignment = Alignment.Center
         ) {
+            // CENTERED MINIMALIST LOGO (Sasta Dark CMD Removed as per 26062_2.jpg & 26065_2.jpg)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .padding(24.dp)
-                    .scale(scaleAnim)
+                    .scale(animateScale.value)
+                    .alpha(animateAlpha.value)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(130.dp)
-                        .shadow(16.dp, shape = RoundedCornerShape(32.dp))
-                        .background(Color.White, shape = RoundedCornerShape(32.dp))
-                        .padding(8.dp),
+                        .size(115.dp)
+                        .background(Color.White, RoundedCornerShape(28.dp))
+                        .border(1.5.dp, Color(0x0F000000), RoundedCornerShape(28.dp))
+                        .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                        contentDescription = "CMD Finder Logo",
+                    // High-End Clean Stylized Identity Icon Container
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(24.dp))
-                    )
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(Color(0xFFFF5722), Color(0xFFFF7043))
+                                ),
+                                shape = RoundedCornerShape(24.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "COD", // Replaced old app naming strings
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "CMD Finder",
+                    text = "COD Finder Qatar", // Brand Name Corrected globally
                     style = TextStyle(
-                        color = Color(0xFFFF5E00), // High-fidelity brand orange
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp,
+                        color = Color(0xFF1A1D24),
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.sp,
                         textAlign = TextAlign.Center
                     )
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
                 Text(
-                    text = "CENTRAL QATAR DISPATCH",
+                    text = "QATAR SMART CASH DISTRIBUTION NETWORK",
                     style = TextStyle(
-                        color = Color(0xFF334155), // High-contrast Charcoal slate for maximum readability on bright surface
-                        fontSize = 12.sp,
+                        color = Color(0xFF757E91),
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.0.sp,
+                        letterSpacing = 1.5.sp,
                         textAlign = TextAlign.Center
+                    )
+                )
+            }
+
+            // MINIMAL FOOTER CREDIT CONTROL (R & L STUDIO)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "POWERED BY",
+                    style = TextStyle(
+                        color = Color(0x22000000),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 3.sp
+                    )
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "R & L STUDIO",
+                    style = TextStyle(
+                        color = Color(0x991A1D24),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
                     )
                 )
             }
@@ -286,7 +324,7 @@ class MainActivity : FragmentActivity() {
             })
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("CMD Finder Security Entry")
+            .setTitle("COD Finder Qatar Security")
             .setSubtitle("Scan fingerprint or face biometrics to proceed.")
             .setNegativeButtonText("Use Passcode")
             .build()
@@ -358,7 +396,7 @@ class MainActivity : FragmentActivity() {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "This premium CDM finder application relies on Google Maps SDK. Please make sure Google Play Services are installed & updated on your device to enable the live interactive mapping system.",
+                    text = "This premium COD finder application relies on Google Maps SDK. Please make sure Google Play Services are installed & updated on your device to enable the live interactive mapping system.",
                     style = TextStyle(
                         fontSize = 14.sp,
                         color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
