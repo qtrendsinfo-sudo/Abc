@@ -519,8 +519,11 @@ class CdmViewModel(
         }
     }
 
-    fun updateRiderLocation(latitude: Double, longitude: Double) {
+    fun updateRiderLocation(latitude: Double, longitude: Double, speed: Int? = null) {
         _riderLocation.value = Pair(latitude, longitude)
+        if (speed != null) {
+            _riderSpeed.value = speed
+        }
     }
 
     @SuppressLint("MissingPermission")

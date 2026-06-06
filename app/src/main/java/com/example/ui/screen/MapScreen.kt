@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 // Google Maps Compose Imports
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.maps.android.compose.*
 
@@ -76,6 +77,16 @@ data class SafetyCameraNode(
     val speedLimit: String,
     val coordinates: LatLng
 )
+
+val talabatMapStyleJson = """
+[
+  { "elementType": "geometry", "stylers": [{"color": "#f5f5f5"}] },
+  { "elementType": "labels.icon", "stylers": [{"visibility": "off"}] },
+  { "featureType": "road.arterial", "elementType": "geometry", "stylers": [{"color": "#fef7e3"}] },
+  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#f8c967"}] },
+  { "featureType": "water", "elementType": "geometry", "stylers": [{"color": "#c9e8ef"}] }
+]
+""".trimIndent()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -213,7 +224,12 @@ fun MapScreen(
                         if (lastLocation != null) {
                             val newLatLng = LatLng(lastLocation.latitude, lastLocation.longitude)
                             userLiveLocation = newLatLng
-                            viewModel.updateRiderLocation(lastLocation.latitude, lastLocation.longitude)
+                            val currentSpeed = if (lastLocation.hasSpeed()) {
+                                (lastLocation.speed * 3.6).toInt()
+                            } else {
+                                null
+                            }
+                            viewModel.updateRiderLocation(lastLocation.latitude, lastLocation.longitude, currentSpeed)
                         }
                     }
                 }
@@ -393,7 +409,8 @@ fun MapScreen(
 
         val mapProperties = remember(isDarkTheme, locationPermissionGranted) {
             MapProperties(
-                isMyLocationEnabled = locationPermissionGranted
+                isMyLocationEnabled = locationPermissionGranted,
+                mapStyleOptions = if (isDarkTheme) null else MapStyleOptions(talabatMapStyleJson)
             )
         }
 
