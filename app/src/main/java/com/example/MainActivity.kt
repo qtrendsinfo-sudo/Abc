@@ -21,6 +21,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -192,62 +193,54 @@ class MainActivity : FragmentActivity() {
         val animateScale = remember { Animatable(0.9f) }
 
         LaunchedEffect(Unit) {
-            animateAlpha.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
-            animateScale.animateTo(1f, animationSpec = tween(700, easing = LinearOutSlowInEasing))
+            animateAlpha.animateTo(1f, animationSpec = tween(900, easing = FastOutSlowInEasing))
+            animateScale.animateTo(1f, animationSpec = tween(800, easing = LinearOutSlowInEasing))
         }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFC)), // Premium clean warm-white background texture
+                .background(Color(0xFFFBFCE3).copy(alpha = 0.98f)) // High-end bright aesthetic cream-white setup
+                .alpha(animateAlpha.value),
             contentAlignment = Alignment.Center
         ) {
-            // CENTERED MINIMALIST LOGO (Sasta Dark CMD Removed as per 26062_2.jpg & 26065_2.jpg)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .scale(animateScale.value)
-                    .alpha(animateAlpha.value)
+                modifier = Modifier.scale(animateScale.value)
             ) {
+                // Catchy Circle App Icon Layout (Eye-Catching Color Accent)
                 Box(
                     modifier = Modifier
-                        .size(115.dp)
-                        .background(Color.White, RoundedCornerShape(28.dp))
-                        .border(1.5.dp, Color(0x0F000000), RoundedCornerShape(28.dp))
-                        .padding(4.dp),
+                        .size(120.dp)
+                        .shadow(12.dp, CircleShape)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(Color(0xFF00E5FF), Color(0xFF2979FF)) // Glowing modern neon-blue accent
+                            ),
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // High-End Clean Stylized Identity Icon Container
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(Color(0xFFFF5722), Color(0xFFFF7043))
-                                ),
-                                shape = RoundedCornerShape(24.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "COD", // Replaced old app naming strings
+                    Text(
+                        text = "COD",
+                        style = TextStyle(
                             color = Color.White,
-                            fontSize = 32.sp,
+                            fontSize = 34.sp,
                             fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
+                            letterSpacing = 0.5.sp
                         )
-                    }
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Text(
-                    text = "COD Finder Qatar", // Brand Name Corrected globally
+                    text = "COD Finder Qatar",
                     style = TextStyle(
-                        color = Color(0xFF1A1D24),
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 2.sp,
+                        color = Color(0xFF111622),
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
                         textAlign = TextAlign.Center
                     )
                 )
@@ -255,18 +248,18 @@ class MainActivity : FragmentActivity() {
                 Spacer(modifier = Modifier.height(6.dp))
                 
                 Text(
-                    text = "QATAR SMART CASH DISTRIBUTION NETWORK",
+                    text = "SMART ROUTING NETWORK",
                     style = TextStyle(
-                        color = Color(0xFF757E91),
-                        fontSize = 10.sp,
+                        color = Color(0xFF6C7A9C),
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp,
+                        letterSpacing = 2.sp,
                         textAlign = TextAlign.Center
                     )
                 )
             }
 
-            // MINIMAL FOOTER CREDIT CONTROL (R & L STUDIO)
+            // R & L STUDIO BRANDING SUB-LAYER
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -275,22 +268,22 @@ class MainActivity : FragmentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "POWERED BY",
+                    text = "DEVELOPED BY",
                     style = TextStyle(
-                        color = Color(0x22000000),
+                        color = Color(0x33000000),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 3.sp
+                        letterSpacing = 2.sp
                     )
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "R & L STUDIO",
                     style = TextStyle(
-                        color = Color(0x991A1D24),
-                        fontSize = 11.sp,
+                        color = Color(0xBB111622),
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
+                        letterSpacing = 1.5.sp
                     )
                 )
             }

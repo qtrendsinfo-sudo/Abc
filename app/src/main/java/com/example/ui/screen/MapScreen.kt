@@ -630,7 +630,7 @@ fun MapScreen(
         // PREMIER DYNAMIC CLOSEST TERMINAL OVERLAY
         // ==========================================
         AnimatedVisibility(
-            visible = nearestMachine != null && selectedMachine == null,
+            visible = false, // HIDE top panel block as per 26081.jpg edge-to-edge layout requirement
             enter = fadeIn() + slideInVertically(),
             exit = fadeOut() + slideOutVertically(),
             modifier = Modifier
@@ -816,7 +816,7 @@ fun MapScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
-                .padding(bottom = if (selectedMachine != null) 420.dp else 135.dp, end = 16.dp),
+                .padding(bottom = if (selectedMachine != null) 250.dp else 135.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Top Control: Pure Jet Black Recenter Button (Ref: 26075_2.jpg crosshair system)
@@ -912,7 +912,7 @@ fun MapScreen(
         }
 
         // ==========================================
-        // 6. MODERN BOTTOM SLIDER POPUP (REPLACES OUTDATED PERMANENT BAR)
+        // 6. MODERN COMPACT PRO FLOATING NAVIGATION CARD
         // ==========================================
         AnimatedVisibility(
             visible = selectedMachine != null,
@@ -925,25 +925,26 @@ fun MapScreen(
         ) {
             selectedMachine?.let { machine ->
                 Card(
-                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                    border = BorderStroke(1.dp, if (isDarkTheme) Color(0xFF334155) else Color(0x0F000000)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(410.dp)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                         .testTag("selected_machine_slider_panel")
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(18.dp)
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
-                        // Grab bar indicator styling
+                        // Card indicator line
                         Box(
                             modifier = Modifier
-                                .size(40.dp, 4.dp)
+                                .size(36.dp, 4.dp)
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(if (isDarkTheme) Color(0xFF475569) else Color(0xFFE2E8F0))
                                 .align(Alignment.CenterHorizontally)
@@ -951,56 +952,75 @@ fun MapScreen(
                         
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Header with Title & Dismiss and Favorite Toggles
+                        // Header Block
                         Row(
-                            verticalAlignment = Alignment.Top,
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
+                                    text = "CLOSEST TERMINAL",
+                                    color = Color(0xFFFF5722), // Prime brand orange text keyword
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
                                     text = machine.merchantName,
+                                    color = if (isDarkTheme) Color.White else Color(0xFF111622),
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isDarkTheme) Color.White else Color(0xFF0F172A),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = machine.branchName,
-                                    fontSize = 12.sp,
                                     color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
-                                    maxLines = 2,
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
 
-                            // Favorite heart toggle
-                            IconButton(onClick = { viewModel.toggleFavorite(machine.id) }) {
-                                Icon(
-                                    imageVector = if (machine.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Toggle favorite status",
-                                    tint = if (machine.isFavorite) Color(0xFFEF4444) else (if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8))
-                                )
-                            }
-
-                            // Dismiss close trigger button
-                            IconButton(onClick = { viewModel.selectMachine(null) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Close detailed machine panel slider",
-                                    tint = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF475569)
-                                )
+                            // Favorite and Close
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { viewModel.toggleFavorite(machine.id) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (machine.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Toggle favorite",
+                                        tint = if (machine.isFavorite) Color(0xFFEF4444) else (if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.selectMachine(null) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Dismiss panel",
+                                        tint = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF475569),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
 
-                        // Operational Status & Cloud Sync Row
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Stats & Info Row
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
+                            // Status Badge
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(
                                         when (machine.status) {
                                             "DOWN" -> Color(0xFFFEE2E2)
@@ -1008,88 +1028,52 @@ fun MapScreen(
                                             else -> Color(0xFFD1FAE5)
                                         }
                                     )
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = when (machine.status) {
-                                        "DOWN" -> "🔴 Offline: ${machine.lastReportType}"
-                                        "CROWDED" -> "🟡 Crowded: ${machine.lastReportType}"
-                                        else -> "🟢 Working: ${machine.lastReportType}"
+                                        "DOWN" -> "🔴 Offline"
+                                        "CROWDED" -> "🟡 Crowded"
+                                        else -> "🟢 Working"
                                     },
                                     color = when (machine.status) {
                                         "DOWN" -> Color(0xFF991B1B)
                                         "CROWDED" -> Color(0xFF92400E)
                                         else -> Color(0xFF065F46)
                                     },
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
 
                             Spacer(modifier = Modifier.width(10.dp))
 
+                            // Distance and ETA details
                             Text(
-                                text = "ID: ${machine.terminalId}",
-                                fontSize = 11.sp,
+                                text = "${"%.2f".format(distanceKm)} km away • ${etaMinutes} mins ETA",
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)
+                                color = if (isDarkTheme) Color(0xFFCBD5E1) else Color(0xFF334155)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Dynamic Distances and ETA Row
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isDarkTheme) Color(0xFF0F172A) else Color(0xFFF8FAFC)
-                            ),
-                            border = BorderStroke(1.dp, if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceAround,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("RIDER DISTANCE", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8))
-                                    Text("${"%.2f".format(distanceKm)} km", fontSize = 16.sp, fontWeight = FontWeight.Black, color = if (isDarkTheme) Color.White else Color(0xFF0F172A))
-                                }
-
-                                Box(modifier = Modifier.width(1.dp).height(30.dp).background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)))
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("ESTIMATED ETA", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8))
-                                    Text("$etaMinutes Mins", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color(0xFFFF5E00))
-                                }
-
-                                Box(modifier = Modifier.width(1.dp).height(30.dp).background(if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)))
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("ROAD SPEED", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8))
-                                    Text("$riderSpeed / $speedLimit kmh", fontSize = 13.sp, fontWeight = FontWeight.Black, color = if (riderSpeed > speedLimit) Color.Red else (if (isDarkTheme) Color.White else Color(0xFF0F172A)))
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Collaborative Dispatcher Notes Text Box
+                        // Notes writing panel
+                        Spacer(modifier = Modifier.height(12.dp))
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.NoteAlt,
                                 contentDescription = null,
                                 tint = Color(0xFFFF5E00),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             if (!isEditingNotes) {
                                 Text(
-                                    text = if (machine.notes.isEmpty()) "Tap to write note: e.g. Near Entry gate, cash limits..." else machine.notes,
-                                    fontSize = 12.sp,
+                                    text = if (machine.notes.isEmpty()) "Click to write routing note..." else machine.notes,
+                                    fontSize = 11.sp,
                                     color = if (machine.notes.isEmpty()) (if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)) else (if (isDarkTheme) Color.White else Color(0xFF334155)),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -1097,11 +1081,14 @@ fun MapScreen(
                                         .weight(1f)
                                         .clickable { isEditingNotes = true }
                                 )
-                                IconButton(onClick = { isEditingNotes = true }) {
+                                IconButton(
+                                    onClick = { isEditingNotes = true },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Edit notes",
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(14.dp),
                                         tint = if (isDarkTheme) Color(0xFF64748B) else Color(0xFF94A3B8)
                                     )
                                 }
@@ -1109,152 +1096,128 @@ fun MapScreen(
                                 OutlinedTextField(
                                     value = editNotesText,
                                     onValueChange = { editNotesText = it },
-                                    placeholder = { Text("Save rider updates...", fontSize = 11.sp) },
-                                    textStyle = TextStyle(fontSize = 12.sp),
+                                    placeholder = { Text("Save rider updates...", fontSize = 10.sp) },
+                                    textStyle = TextStyle(fontSize = 11.sp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Color(0xFFFF5E00),
                                         unfocusedBorderColor = if (isDarkTheme) Color(0xFF475569) else Color(0xFFCBD5E1)
                                     ),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(42.dp),
+                                        .height(36.dp),
                                     singleLine = true
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Button(
                                     onClick = {
                                         viewModel.saveMachineNotes(machine.id, editNotesText)
                                         isEditingNotes = false
-                                        Toast.makeText(context, "Local dispatch notes saved successfully ✔", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Dispatcher note updated ✔", Toast.LENGTH_SHORT).show()
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5E00)),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
+                                    shape = RoundedCornerShape(6.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(28.dp)
                                 ) {
-                                    Text("Save", fontSize = 11.sp, color = Color.White)
+                                    Text("Save", fontSize = 10.sp, color = Color.White)
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // Bottom Action Controls: Simulation start/stop, status report
+                        // Actions Row: Waze Integration, Simulator Go/Stop Nav, and Report crowd
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Status report button
+                            // Report button
                             OutlinedButton(
                                 onClick = { showReportDialog = machine },
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, if (isDarkTheme) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, if (isDarkTheme) Color(0xFF334155) else Color(0xFFCBD5E1)),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(48.dp)
+                                    .height(42.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Campaign,
                                     contentDescription = null,
-                                    tint = if (isDarkTheme) Color(0xFFE2E8F0) else Color(0xFF475569),
-                                    modifier = Modifier.size(18.dp)
+                                    tint = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF475569),
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    "Report Crowd / Crash",
-                                    fontSize = 12.sp,
-                                    color = if (isDarkTheme) Color(0xFFE2E8F0) else Color(0xFF475569)
-                                )
+                                Text("Report", fontSize = 11.sp, color = if (isDarkTheme) Color(0xFFCBD5E1) else Color(0xFF475569))
                             }
 
-                            // Navigation button
+                            // Waze real navigation
+                            Button(
+                                onClick = {
+                                    try {
+                                        val uri = "waze://?ll=${machine.latitude},${machine.longitude}&navigate=yes"
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        val webUri = "https://waze.com/ul?ll=${machine.latitude},${machine.longitude}&navigate=yes"
+                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUri))
+                                        context.startActivity(webIntent)
+                                        Toast.makeText(context, "Opening Waze Live Routing...", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF00C853),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .height(42.dp)
+                                    .testTag("waze_navigation_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsCar,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("WAZE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+
+                            // Simulator Switch
                             Button(
                                 onClick = {
                                     if (isNavigating) {
                                         viewModel.cancelActiveNavigation()
-                                        Toast.makeText(context, "Navigation route simulation stopped.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Simulation stopped.", Toast.LENGTH_SHORT).show()
                                     } else {
                                         viewModel.startNavigationSimulation()
-                                        Toast.makeText(context, "Initiating GPS route simulation to terminal...", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "Active Route tracking active", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isNavigating) Color(0xFFEF4444) else Color(0xFFFF5E00)
                                 ),
-                                contentPadding = PaddingValues(0.dp),
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
+                                    .weight(1.2f)
+                                    .height(42.dp)
                                     .testTag("map_navigation_button")
                             ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isNavigating) Icons.Default.Navigation else Icons.Default.NearMe,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = if (isNavigating) "STOP NAVIGATION" else "GO NAVIGATE",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = 13.sp,
-                                            color = Color.White,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
+                                Icon(
+                                    imageVector = if (isNavigating) Icons.Default.Stop else Icons.Default.NearMe,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isNavigating) "STOP SIM" else "START SIM",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Real-time external navigation launcher
-                        Button(
-                            onClick = {
-                                try {
-                                    val uri = "waze://?ll=${machine.latitude},${machine.longitude}&navigate=yes"
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val webUri = "https://waze.com/ul?ll=${machine.latitude},${machine.longitude}&navigate=yes"
-                                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUri))
-                                    context.startActivity(webIntent)
-                                    Toast.makeText(context, "Opening Waze Live Routing...", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF00C853), // Standard Talabat Green Match
-                                contentColor = Color.White
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .testTag("waze_navigation_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DirectionsCar,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                "OPEN IN WAZE ROUTING APP",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
                         }
                     }
                 }
