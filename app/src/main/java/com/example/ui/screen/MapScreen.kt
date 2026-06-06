@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -244,13 +246,35 @@ fun MapScreen(
         position = CameraPosition.fromLatLngZoom(dohaCenter, 11f)
     }
 
-    // Effect: Keep camera centered on moving simulator rider during navigation
+    // Effect: Keep camera centered on moving simulator rider with dynamic bearing auto-rotation during navigation
     LaunchedEffect(riderLoc) {
-        if (isNavigating) {
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLng(LatLng(riderLoc.first, riderLoc.second)),
-                800
+        if (isNavigating && selectedMachine != null) {
+            val destination = LatLng(selectedMachine!!.latitude, selectedMachine!!.longitude)
+            val currentBearing = calculateBearing(
+                riderLoc.first, riderLoc.second,
+                destination.latitude, destination.longitude
             )
+            val cameraPos = CameraPosition.builder()
+                .target(LatLng(riderLoc.first, riderLoc.second))
+                .zoom(15.5f) // Deep zoom for clear navigation route details
+                .bearing(currentBearing)
+                .tilt(40f) // Sleek tilting camera for Uber-style real-time simulation look
+                .build()
+            try {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newCameraPosition(cameraPos),
+                    1000
+                )
+            } catch (e: Throwable) {
+                // Ignore animation interruption
+            }
+        } else if (isNavigating) {
+            try {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLng(LatLng(riderLoc.first, riderLoc.second)),
+                    800
+                )
+            } catch (e: Throwable) {}
         }
     }
 
@@ -321,6 +345,23 @@ fun MapScreen(
             .fillMaxSize()
             .background(if (isDarkTheme) Color(0xFF0F172A) else Color(0xFFF1F5F9))
     ) {
+        // Strict 2-km local radius filter for displaying clutter-free nearby CDM terminal pins
+        val machinesInside2Km = remember(filteredMachines, userLiveLocation) {
+            filteredMachines.filter { machine ->
+                val results = FloatArray(1)
+                try {
+                    android.location.Location.distanceBetween(
+                        userLiveLocation.latitude, userLiveLocation.longitude,
+                        machine.latitude, machine.longitude,
+                        results
+                    )
+                    results[0] <= 2000f // Strict radius ceiling constraint
+                } catch (e: Exception) {
+                    true // safe local fallback trace
+                }
+            }
+        }
+
         // ==========================================
         // 1. INTEGRATED REAL GOOGLE MAPS COMPOSE EDGE-TO-EDGE
         // ==========================================
@@ -375,14 +416,14 @@ fun MapScreen(
                     }
                     Polyline(
                         points = routePoints,
-                        color = Color(0xFF00B0FF), // Sleek, modern neon-azure blue (#00B0FF)
-                        width = 8f,
+                        color = Color(0xFF00E5FF), // Sleek, thin Neon Cyan polyline path
+                        width = 6f, // Modern 6f thickness look
                         jointType = com.google.android.gms.maps.model.JointType.ROUND
                     )
                 }
 
-                // Display all 131 positions on Google Map with custom minimalist micro-markers
-                filteredMachines.forEach { machine ->
+                // Display all positions strictly within 2km on Google Map with custom minimalist micro-markers
+                machinesInside2Km.forEach { machine ->
                     val statusTextStr = when (machine.status) {
                         "DOWN" -> "Offline"
                         "CROWDED" -> "Crowded"
@@ -427,7 +468,7 @@ fun MapScreen(
         } else {
             CdmSimulatedMapFallback(
                 isDarkTheme = isDarkTheme,
-                filteredMachines = filteredMachines,
+                filteredMachines = machinesInside2Km,
                 riderLoc = riderLoc,
                 selectedMachine = selectedMachine,
                 nearestMachine = nearestMachine,
@@ -444,183 +485,212 @@ fun MapScreen(
         }
 
         // ==========================================
-        // 2. CLEAN TOP SECTOR & STATUS PILL (MATCH 25510.jpg)
+        // 2. EXTRA-CLEAN STANDALONE TOP CONTROLS (EDGE-TO-EDGE ACCESSIBLE)
         // ==========================================
-        Box(
+        
+        // Standalone circular white button containing ONLY the 3-line hamburger menu icon cleanly on the TOP LEFT
+        Card(
+            shape = CircleShape,
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDarkTheme) Color(0xFF1D2939) else Color.White
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             modifier = Modifier
-                .align(Alignment.TopCenter)
+                .align(Alignment.TopStart)
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .fillMaxWidth()
+                .padding(start = 16.dp, top = 16.dp)
+                .size(48.dp)
+                .clickable { showHamburgerMenu = true }
+                .testTag("map_hamburger_menu")
         ) {
-            // Standalone circular white card for hamburger menu icon (TOP LEFT)
-            Card(
-                shape = CircleShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                modifier = Modifier
-                    .size(48.dp)
-                    .align(Alignment.CenterStart)
-                    .clickable { showHamburgerMenu = true }
-                    .testTag("map_hamburger_menu")
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Hamburger menu representing legal rules and controls",
-                        tint = if (isDarkTheme) Color.White else Color(0xFF0F172A)
-                    )
-                }
-            }
-
-            // Standalone floating status pill (TOP CENTER)
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isDarkTheme) Color(0xFF1E293B) else Color.White
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clickable { 
-                        isOnlineRider = !isOnlineRider
-                        Toast.makeText(context, if (isOnlineRider) "Rider Status: Online" else "Rider Status: Offline", Toast.LENGTH_SHORT).show()
-                    }
-                    .testTag("map_status_pill")
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.Start,
-                        modifier = Modifier.padding(end = 12.dp)
-                    ) {
-                        Text(
-                            text = "Status",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B)
-                        )
-                        Text(
-                            text = if (isOnlineRider) "Online" else "Offline",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isDarkTheme) Color.White else Color(0xFF0F172A)
-                        )
-                    }
-                    // Glowing green/gray dot container
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(if (isOnlineRider) Color(0xFF00C853) else Color(0xFF94A3B8))
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Hamburger menu button representing legal rules and controls",
+                    tint = if (isDarkTheme) Color.White else Color(0xFF0F172A)
+                )
             }
         }
 
-            // ==========================================
-            // PREMIER DYNAMIC CLOSEST TERMINAL OVERLAY
-            // ==========================================
-            AnimatedVisibility(
-                visible = nearestMachine != null && selectedMachine == null,
-                enter = fadeIn() + slideInVertically(),
-                exit = fadeOut() + slideOutVertically()
+        // EYE-CATCHY GLASSMORPHISM STATUS WIDGET IN THE TOP CENTER (54.dp safely padded below system status area)
+        val statusPulseTransition = rememberInfiniteTransition(label = "status_pulse")
+        val statusPulseScale by statusPulseTransition.animateFloat(
+            initialValue = 0.8f,
+            targetValue = 1.4f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "status_glow_scale"
+        )
+        val statusPulseAlpha by statusPulseTransition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "status_glow_alpha"
+        )
+
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xAA111111) // Semi-transparent blurred dark background
+            ),
+            border = BorderStroke(1.dp, Color(0x33FFFFFF)), // Thin elegant white border outline
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 54.dp)
+                .zIndex(10f)
+                .clickable { 
+                    isOnlineRider = !isOnlineRider
+                    Toast.makeText(context, if (isOnlineRider) "Rider Duty Status: Ready and Online" else "Offline: System standby", Toast.LENGTH_SHORT).show()
+                }
+                .testTag("map_status_pill")
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                nearestMachine?.let { nearest ->
-                    val dist = viewModel.calculateDistance(
-                        riderLoc.first, riderLoc.second,
-                        nearest.latitude, nearest.longitude
-                    )
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f)
-                        ),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isDarkTheme) Color(0xFFFF5E00).copy(alpha = 0.4f) else Color(0xFFFF5E00).copy(alpha = 0.2f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(16.dp)
+                ) {
+                    // Pulsing outer neon emerald green glow ring
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                            .testTag("nearest_machine_overlay")
+                            .size(12.dp)
+                            .scale(statusPulseScale)
+                            .alpha(statusPulseAlpha)
+                            .background(if (isOnlineRider) Color(0xFF00E676) else Color(0xFFEF4444), CircleShape)
+                    )
+                    // Solid central core dot key node
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(if (isOnlineRider) Color(0xFF00E676) else Color(0xFF94A3B8), CircleShape)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isOnlineRider) "SYSTEM ONLINE" else "SYSTEM STANDBY",
+                    style = TextStyle(
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.2.sp
+                    )
+                )
+            }
+        }
+
+        // ==========================================
+        // PREMIER DYNAMIC CLOSEST TERMINAL OVERLAY
+        // ==========================================
+        AnimatedVisibility(
+            visible = nearestMachine != null && selectedMachine == null,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 114.dp, start = 16.dp, end = 16.dp) // Padded uniquely to avoid overlapping the status widget
+                .fillMaxWidth()
+                .zIndex(8f)
+        ) {
+            nearestMachine?.let { nearest ->
+                val dist = viewModel.calculateDistance(
+                    riderLoc.first, riderLoc.second,
+                    nearest.latitude, nearest.longitude
+                )
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f)
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isDarkTheme) Color(0xFFFF5E00).copy(alpha = 0.4f) else Color(0xFFFF5E00).copy(alpha = 0.2f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("nearest_machine_overlay")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF5E00).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFFF5E00).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.NearMe,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFF5E00),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.width(10.dp))
-                            
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "CLOSEST CDM TERMINAL",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFF5E00)
-                                )
-                                Text(
-                                    text = nearest.merchantName,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (isDarkTheme) Color.White else Color(0xFF0F172A),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "${"%.2f".format(dist)} km away • ${nearest.shortBranchName}",
-                                    fontSize = 11.sp,
-                                    color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.width(8.dp))
-                            
-                            Button(
-                                onClick = {
-                                    viewModel.selectMachine(nearest)
-                                    scope.launch {
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newLatLngZoom(LatLng(nearest.latitude, nearest.longitude), 15f),
-                                            1000
-                                        )
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5E00)),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("Navigate", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
+                            Icon(
+                                imageVector = Icons.Default.NearMe,
+                                contentDescription = null,
+                                tint = Color(0xFFFF5E00),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(10.dp))
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "CLOSEST CDM TERMINAL",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFF5E00)
+                            )
+                            Text(
+                                text = nearest.merchantName,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isDarkTheme) Color.White else Color(0xFF0F172A),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${"%.2f".format(dist)} km away • ${nearest.shortBranchName}",
+                                fontSize = 11.sp,
+                                color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        Button(
+                            onClick = {
+                                viewModel.selectMachine(nearest)
+                                scope.launch {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(LatLng(nearest.latitude, nearest.longitude), 15f),
+                                        1000
+                                    )
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5E00)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("Navigate", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
             }
+        }
 
         // ==========================================
         // 4. PREMIUM TERMINAL-FOCUSED BOTTOM SHEET (WHEN NO MACHINE SELECTED)
@@ -693,7 +763,7 @@ fun MapScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Real-time tracking active. Drive towards high-density sectors for instant cash deposits.",
+                                text = "Real-time tracking active. Distance automatically optimized.",
                                 fontSize = 12.sp,
                                 color = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF64748B)
                             )
@@ -1914,5 +1984,21 @@ fun generateRoutePoints(start: LatLng, end: LatLng): List<LatLng> {
     points.add(p4)
     points.add(end)
     return points
+}
+
+fun calculateBearing(startLat: Double, startLng: Double, endLat: Double, endLng: Double): Float {
+    val results = FloatArray(2)
+    try {
+        android.location.Location.distanceBetween(startLat, startLng, endLat, endLng, results)
+        return results[1]
+    } catch (e: Exception) {
+        val lat1 = Math.toRadians(startLat)
+        val lat2 = Math.toRadians(endLat)
+        val dLng = Math.toRadians(endLng - startLng)
+        val y = Math.sin(dLng) * Math.cos(lat2)
+        val x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng)
+        val bearing = Math.atan2(y, x)
+        return ((Math.toDegrees(bearing) + 360) % 360).toFloat()
+    }
 }
 
