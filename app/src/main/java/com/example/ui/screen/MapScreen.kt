@@ -70,6 +70,13 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.graphics.PathEffect
 
+data class SafetyCameraNode(
+    val id: String,
+    val type: String,
+    val speedLimit: String,
+    val coordinates: LatLng
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -228,6 +235,16 @@ fun MapScreen(
     val markerIconActive = remember(isDarkTheme) { createCustomMarkerIcon(context, "ACTIVE", isDarkTheme) }
     val markerIconCrowded = remember(isDarkTheme) { createCustomMarkerIcon(context, "CROWDED", isDarkTheme) }
     val markerIconDown = remember(isDarkTheme) { createCustomMarkerIcon(context, "DOWN", isDarkTheme) }
+
+    // Qatar Speed & Red Light Camera Framework
+    val qatarCameraDatabase = remember {
+        listOf(
+            SafetyCameraNode("CAM_1", "Speed Camera", "100 km/h", LatLng(25.2830, 51.5250)),
+            SafetyCameraNode("CAM_2", "Red Light Camera", "80 km/h", LatLng(25.2885, 51.5395)),
+            SafetyCameraNode("CAM_3", "Speed Camera", "120 km/h", LatLng(25.2630, 51.4450)),
+            SafetyCameraNode("CAM_4", "Red Light Camera", "80 km/h", LatLng(25.2585, 51.4395))
+        )
+    }
 
     // Local UI control states
     var isOnlineRider by remember { mutableStateOf(true) }
@@ -452,9 +469,20 @@ fun MapScreen(
                     }
                     Polyline(
                         points = routePoints,
-                        color = Color(0xFF00E5FF), // Sleek, thin Neon Cyan polyline path
-                        width = 6f, // Modern 6f thickness look
+                        color = Color(0xFF00E5FF), // Vivid Cyan Waze-style routing line
+                        width = 28f, // Extra thick styling format matching Waze
+                        geodesic = true,
                         jointType = com.google.android.gms.maps.model.JointType.ROUND
+                    )
+                }
+
+                // Render Real-time Safety Cameras Tracked on Viewport
+                qatarCameraDatabase.forEach { camera ->
+                    Marker(
+                        state = rememberMarkerState(position = camera.coordinates),
+                        title = "${camera.type} (${camera.speedLimit})",
+                        alpha = 0.85f,
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
                     )
                 }
 
@@ -549,79 +577,41 @@ fun MapScreen(
                     tint = if (isDarkTheme) Color.White else Color(0xFF0F172A)
                 )
             }
-        }
-
-        // EYE-CATCHY GLASSMORPHISM STATUS WIDGET IN THE TOP CENTER (54.dp safely padded below system status area)
-        val statusPulseTransition = rememberInfiniteTransition(label = "status_pulse")
-        val statusPulseScale by statusPulseTransition.animateFloat(
-            initialValue = 0.8f,
-            targetValue = 1.4f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "status_glow_scale"
-        )
-        val statusPulseAlpha by statusPulseTransition.animateFloat(
-            initialValue = 0.4f,
-            targetValue = 1.0f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "status_glow_alpha"
-        )
-
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xAA111111) // Semi-transparent blurred dark background
-            ),
-            border = BorderStroke(1.dp, Color(0x33FFFFFF)), // Thin elegant white border outline
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        }        // =========================================================
+        // 🟢 TOP CONTROL LAYER: WHITE "ONLINE" PILL (Adaptive Dark/Light)
+        // =========================================================
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
-                .padding(top = 54.dp)
-                .zIndex(10f)
-                .clickable { 
+                .padding(top = 28.dp) // Thora neechay push kiya hai
+                .shadow(8.dp, RoundedCornerShape(50.dp))
+                .background(if (isDarkTheme) Color(0xFF1E293B) else Color.White, RoundedCornerShape(50.dp)) // Pure White/Slate Background
+                .clickable {
                     isOnlineRider = !isOnlineRider
                     Toast.makeText(context, if (isOnlineRider) "Rider Duty Status: Ready and Online" else "Offline: System standby", Toast.LENGTH_SHORT).show()
                 }
-                .testTag("map_status_pill")
+                .padding(horizontal = 20.dp, vertical = 10.dp)
+                .zIndex(10f)
+                .testTag("map_status_pill"),
+            contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
                 Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(16.dp)
-                ) {
-                    // Pulsing outer neon emerald green glow ring
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .scale(statusPulseScale)
-                            .alpha(statusPulseAlpha)
-                            .background(if (isOnlineRider) Color(0xFF00E676) else Color(0xFFEF4444), CircleShape)
-                    )
-                    // Solid central core dot key node
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(if (isOnlineRider) Color(0xFF00E676) else Color(0xFF94A3B8), CircleShape)
-                    )
-                }
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(if (isOnlineRider) Color(0xFF00E676) else Color(0xFFEF4444), CircleShape) // Green/Red Dot
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isOnlineRider) "SYSTEM ONLINE" else "SYSTEM STANDBY",
-                    style = TextStyle(
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.2.sp
-                    )
+                    text = if (isOnlineRider) "ONLINE" else "STANDBY",
+                    color = if (isDarkTheme) Color.White else Color.Black,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.sp
                 )
             }
         }
@@ -806,6 +796,37 @@ fun MapScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // =========================================================
+        // 🏍️ REAL-TIME SPEEDOMETER INTERFACE
+        // =========================================================
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, bottom = if (selectedMachine != null) 250.dp else 135.dp) // Dynamic offset above bottom sheets
+                .size(76.dp)
+                .shadow(8.dp, CircleShape)
+                .background(if (isDarkTheme) Color(0xFF1E232E) else Color(0xFF111111), CircleShape) // Dark premium speedometer background
+                .border(3.dp, if (isDarkTheme) Color(0xFF475569) else Color(0xFF424242), CircleShape)
+                .zIndex(12f),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "$riderSpeed",
+                    color = Color.White,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    text = "km/h",
+                    color = Color.LightGray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -1131,26 +1152,26 @@ fun MapScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Report button
-                            OutlinedButton(
+                            // Report button (R)
+                            Button(
                                 onClick = { showReportDialog = machine },
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, if (isDarkTheme) Color(0xFF334155) else Color(0xFFCBD5E1)),
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Campaign,
-                                    contentDescription = null,
-                                    tint = if (isDarkTheme) Color(0xFF94A3B8) else Color(0xFF475569),
-                                    modifier = Modifier.size(16.dp)
+                                    .weight(0.6f)
+                                    .height(44.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isDarkTheme) Color(0xFF334155) else Color(0xFFF4F6FA)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Report", fontSize = 11.sp, color = if (isDarkTheme) Color(0xFFCBD5E1) else Color(0xFF475569))
+                            ) {
+                                Text(
+                                    text = "R",
+                                    color = if (isDarkTheme) Color.White else Color.Gray,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
 
-                            // Waze real navigation
+                            // WAZE Button
                             Button(
                                 onClick = {
                                     try {
@@ -1163,59 +1184,46 @@ fun MapScreen(
                                         context.startActivity(webIntent)
                                         Toast.makeText(context, "Opening Waze Live Routing...", Toast.LENGTH_SHORT).show()
                                     }
+                                    // Start the high vis map routing animation simultaneously
+                                    viewModel.startNavigationSimulation()
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF00C853),
-                                    contentColor = Color.White
+                                    containerColor = Color(0xFF00C853) // Green
                                 ),
                                 modifier = Modifier
                                     .weight(1.2f)
-                                    .height(42.dp)
+                                    .height(44.dp)
                                     .testTag("waze_navigation_button")
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.DirectionsCar,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                Text(
+                                    text = "WAZE",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("WAZE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
 
-                            // Simulator Switch
+                            // STOP Button
                             Button(
                                 onClick = {
-                                    if (isNavigating) {
-                                        viewModel.cancelActiveNavigation()
-                                        Toast.makeText(context, "Simulation stopped.", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        viewModel.startNavigationSimulation()
-                                        Toast.makeText(context, "Active Route tracking active", Toast.LENGTH_SHORT).show()
-                                    }
+                                    viewModel.cancelActiveNavigation()
+                                    Toast.makeText(context, "Simulation stopped.", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isNavigating) Color(0xFFEF4444) else Color(0xFFFF5E00)
+                                    containerColor = Color(0xFFEF5350) // Red
                                 ),
                                 modifier = Modifier
                                     .weight(1.2f)
-                                    .height(42.dp)
+                                    .height(44.dp)
                                     .testTag("map_navigation_button")
                             ) {
-                                Icon(
-                                    imageVector = if (isNavigating) Icons.Default.Stop else Icons.Default.NearMe,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isNavigating) "STOP SIM" else "START SIM",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    text = "STOP",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black
                                 )
                             }
                         }
