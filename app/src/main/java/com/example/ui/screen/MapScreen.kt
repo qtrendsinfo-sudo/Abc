@@ -865,7 +865,7 @@ fun MapScreen(
                 )
             }
 
-            // Bottom Control: Pure White Direction Arrow Button (Ref: 26075_2.jpg arrow system placement context)
+            // Bottom Control: Pure White Premium Navigation Button (Old text arrow replaced with professional icon!)
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -900,11 +900,13 @@ fun MapScreen(
                     .testTag("direction_navigation_button"),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "➔",
-                    color = Color(0xFF111111), // High-visibility solid black navigation icon token
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Navigate Direction",
+                    tint = Color(0xFF111111), // Solid black icon vector on premium white background
+                    modifier = Modifier 
+                        .size(28.dp)
+                        .scale(1.1f) // Slightly scaled up for high-end look
                 )
             }
         }
